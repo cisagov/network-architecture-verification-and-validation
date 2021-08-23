@@ -1,0 +1,5 @@
+build
+builds
+dist
+package
+*.egg-info
