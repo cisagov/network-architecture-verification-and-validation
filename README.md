@@ -230,7 +230,13 @@ As the example illustrates, the NAVV tool generated `.pkl` and `.xlsx` files as 
 
 ### <a name="Analysis"></a>Identifying Network Segments and Hosts
 
-TODO: explain how to open the XLSX file, identify network segments and hosts and whatever else you need to do prior to running NAVV again.
+Adding information about network segments and/or inventory can assist in packet capture analysis. Open the NAVV-generated `.xlsx` file and navigate to the `Segments` tab. Enter the relevant network segments and choose background colors for the corresponding cells. For example: 
+
+![](./docs/images/segments.png)
+
+Save your changes and re-run the NAVV tool with the `-z` option on the directory containing the Zeek log files and `.xlsx` file. The tool will modify the contents of the spreadsheet, recoloring the contents of the `Analysis` tab to match the segments specified in the `Segments` tab. This simplifies the task of identifying cross-segment traffic.
+
+When available, the NAVV tool will use responses for queries found in Zeek's `dns.log` file to populate the `Src_Desc` and `Dest_Desc` fields in the `Analysis` tab. When DNS information is not available, it is possible to provide this information manually in the `Inventory` tab. Note that color formatting from the `Inventory` tab is applied **after** that from the `Segments` tab. Again, saving changes to the spreadsheet file and re-running the NAVV tool with the `-z` option will update the spreadsheet with the new inventory information and color formatting.
 
 ## <a name="Docker"></a>Docker
 
