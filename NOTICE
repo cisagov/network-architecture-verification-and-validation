@@ -1,4 +1,7 @@
-This project contains code from Idaho National Laboratory's Network Architecture Verification & Validation Tool (NAVV), Licensed under BSD-3 License.
+﻿This project contains code from Idaho National Laboratory's Network Architecture Verification & Validation Tool Project
+Github IdahoLab/NAVV
+Licensed under BSD-3 License.
+
 
 © 2021 Battelle Energy Alliance, LLC
 ALL RIGHTS RESERVED
@@ -30,5 +33,6 @@ OWNED RIGHTS.
 Authors:
 
 Tim Wakeman
-Donovan Nichols
+Donovan Nichols 
 Seth Grover
+
