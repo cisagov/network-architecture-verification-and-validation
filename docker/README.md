@@ -8,7 +8,7 @@
 
 ## <a name="Build"></a>Building the Docker Image
 
-Run `./docker/build_docker.sh` to build the `navv:latest` image. You can include `--force-rm --no-cache` to build the image from scratch without using any previously cached layers.
+Run `./docker/build_docker.sh` to build the `ghcr.io/idaholab/navv:latest` image. You can include `--force-rm --no-cache` to build the image from scratch without using any previously cached layers.
 
 This build process doesn't require any previous building or configuration of the `navv` Python code: it's entirely self-contained.
 
@@ -17,7 +17,7 @@ $ ./docker/build_docker.sh --force-rm --no-cache
 Sending build context to Docker daemon  6.873MB
 Step 1/17 : FROM ubuntu:latest
 …
-Successfully tagged navv:latest
+Successfully tagged ghcr.io/idaholab/navv:latest
 
 $ docker images | head
 REPOSITORY                                   TAG           IMAGE ID       CREATED          SIZE
@@ -65,7 +65,7 @@ Use the script `./docker/backup_docker.sh`:
 ```
 $ /home/user/navv/docker/backup_docker.sh
 Transfer navv-docker_20210219_114718_59a26a647a3f.tar.gz and navv-docker.sh to destination host
-Import navv:latest with docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
+Import ghcr.io/idaholab/navv:latest with docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
 Run with navv-docker.sh
 ```
 
@@ -76,7 +76,7 @@ docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
 7a8aada2513d: Loading layer [==================================================>]  6.878MB/6.878MB
 5c42a13ea084: Loading layer [==================================================>]  42.98MB/42.98MB
 b62a2ff84161: Loading layer [==================================================>]  341.5kB/341.5kB
-Loaded image: navv:latest
+Loaded image: ghcr.io/idaholab/navv:latest
 ```
 
 Then use `navv-docker.sh` as described above.
@@ -90,7 +90,7 @@ $ mkdir ./build
 $ docker run --rm --entrypoint=/bin/bash \
   -u $(id -u) \
   -v $(pwd)/build:/build \
-  navv:latest navv-build-for-export.sh
+  ghcr.io/idaholab/navv:latest navv-build-for-export.sh
 Collecting build
 …
 total 9.4M

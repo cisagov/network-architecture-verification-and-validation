@@ -15,7 +15,7 @@ fi
 export SCRIPT_PATH="$($DIRNAME $($REALPATH -e "${BASH_SOURCE[0]}"))"
 
 # default docker image name (can be overriden via NAVV_DOCKER_IMAGE env. var.)
-NAVV_DOCKER_IMAGE="${NAVV_DOCKER_IMAGE:-navv:latest}"
+NAVV_DOCKER_IMAGE="${NAVV_DOCKER_IMAGE:-ghcr.io/idaholab/navv:latest}"
 
 # save tarball with image creation date and sha
 DOCKER_BACKUP_FILENAME=navv-docker_$(date -d "$(docker inspect --format='{{.Created}}' "$NAVV_DOCKER_IMAGE")" +"%Y%m%d_%H%M%S")_$(docker images --no-trunc --quiet "$NAVV_DOCKER_IMAGE" | cut -d: -f2 | cut -c 1-12).tar.gz

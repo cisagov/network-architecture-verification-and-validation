@@ -16,6 +16,6 @@ export SCRIPT_PATH="$($DIRNAME $($REALPATH -e "${BASH_SOURCE[0]}"))"
 
 pushd "$SCRIPT_PATH"/.. >/dev/null 2>&1
 
-docker build -f docker/Dockerfile -t navv:latest "$@" .
+docker build -f docker/Dockerfile -t ghcr.io/idaholab/navv:latest "$@" .
 
 popd >/dev/null 2>&1
