@@ -10,7 +10,6 @@ import pickle
 import sys
 
 # package imports
-from navv import data_types
 from navv import utilities
 from navv import spreadsheet_tools
 from navv import _version
