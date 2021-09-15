@@ -5,7 +5,7 @@ FROM ubuntu:latest
 LABEL maintainer="seth.grover@inl.gov"
 LABEL org.opencontainers.image.authors='seth.grover@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/NAVV'
-LABEL org.opencontainers.image.documentation='https://github.com/idaholab/NAVV/blob/master/README.md'
+LABEL org.opencontainers.image.documentation='https://github.com/idaholab/NAVV/blob/develop/README.md'
 LABEL org.opencontainers.image.source='https://github.com/idaholab/NAVV'
 LABEL org.opencontainers.image.vendor='Idaho National Laboratory'
 LABEL org.opencontainers.image.title='idaholab/NAVV'

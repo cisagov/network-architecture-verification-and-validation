@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Copyright 2021 Battelle Energy Alliance, LLC
+
 set -e
 set -o pipefail
 set -u

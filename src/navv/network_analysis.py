@@ -7,58 +7,97 @@ import argparse
 import os
 import pkg_resources
 import pickle
+import sys
 
 # package imports
 from navv import data_types
 from navv import utilities
 from navv import spreadsheet_tools
+from navv import _version
 
-DATA_PATH = pkg_resources.resource_filename('navv', 'data/')
+DATA_PATH = pkg_resources.resource_filename("navv", "data/")
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='One stop shop for all your zeek-cut commands')
-    parser.add_argument('customer_name', help='Name of the customer')
-    parser.add_argument('-o', '--output-dir', help='Directory to place resultant files in', default=os.getcwd())
-    parser.add_argument('-p', '--pcap', help='Path to pcap file. Will run zeek and output logs in cwd or --zeek-logs')
-    parser.add_argument('-z', '--zeek-logs', help='Directory containing log files', default=os.getcwd())
+    parser = argparse.ArgumentParser(
+        description=f"NAVV: Network Architecture Verification and Validation {_version.__version__}"
+    )
+    parser.add_argument("customer_name", help="Name of the customer")
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        help="Directory to place resultant files in",
+        default=os.getcwd(),
+    )
+    parser.add_argument(
+        "-p",
+        "--pcap",
+        help="Path to pcap file. Will run zeek and output logs in cwd or --zeek-logs",
+    )
+    parser.add_argument(
+        "-v", "--version", help="Display NAVV version", dest='show_version', action='store_true'
+    )
+    parser.add_argument(
+        "-z", "--zeek-logs", help="Directory containing log files", default=os.getcwd()
+    )
     return parser.parse_args()
 
 
 @utilities.timeit
 def main(args):
     """Main function for performing zeek-cut commands and sorting the output"""
+
+    if args.show_version:
+        print(f"{_version.__version__}")
+        sys.exit(0)
+
     out_dir = args.output_dir
     with utilities.pushd(out_dir):
         pass
-    file_name = os.path.join(out_dir, args.customer_name + '_network_analysis.xlsx')
+    file_name = os.path.join(out_dir, args.customer_name + "_network_analysis.xlsx")
 
     wb = spreadsheet_tools.get_workbook(file_name)
 
     services, conn_states = spreadsheet_tools.get_package_data()
     timer_data = dict()
-    inventory = spreadsheet_tools.get_inventory_data(wb['Inventory'])
-    segments = spreadsheet_tools.get_segments_data(wb['Segments'])
+    inventory = spreadsheet_tools.get_inventory_data(wb["Inventory"])
+    segments = spreadsheet_tools.get_segments_data(wb["Segments"])
     zeek_logs_path = args.zeek_logs
 
     if args.pcap:
         utilities.run_zeek(os.path.abspath(args.pcap), zeek_logs_path, timer=timer_data)
     else:
-        timer_data['run_zeek'] = 'NOT RAN'
-    zeek_data = utilities.perform_zeekcut(
-        fields=['id.orig_h', 'id.resp_h', 'id.resp_p', 'proto', 'conn_state', 'orig_l2_addr', 'resp_l2_addr'],
-        log_file=os.path.join(zeek_logs_path, 'conn.log')).decode('utf-8').split('\n')[:-1]
+        timer_data["run_zeek"] = "NOT RAN"
+    zeek_data = (
+        utilities.perform_zeekcut(
+            fields=[
+                "id.orig_h",
+                "id.resp_h",
+                "id.resp_p",
+                "proto",
+                "conn_state",
+                "orig_l2_addr",
+                "resp_l2_addr",
+            ],
+            log_file=os.path.join(zeek_logs_path, "conn.log"),
+        )
+        .decode("utf-8")
+        .split("\n")[:-1]
+    )
     # turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = spreadsheet_tools.create_analysis_array(zeek_data, timer=timer_data)
+    rows, mac_dict = spreadsheet_tools.create_analysis_array(
+        zeek_data, timer=timer_data
+    )
 
     # get dns data for resolution
-    pkl_path = os.path.join(out_dir, '{}_dns_data.pkl'.format(args.customer_name))
+    pkl_path = os.path.join(out_dir, "{}_dns_data.pkl".format(args.customer_name))
     if os.path.exists(pkl_path):
-        with open(pkl_path, 'rb') as pkl:
+        with open(pkl_path, "rb") as pkl:
             dns_filtered = pickle.load(pkl)
     else:
         dns_data = utilities.perform_zeekcut(
-            fields=['query', 'answers', 'qtype', 'rcode_name'],
-            log_file=os.path.join(zeek_logs_path, 'dns.log')
+            fields=["query", "answers", "qtype", "rcode_name"],
+            log_file=os.path.join(zeek_logs_path, "dns.log"),
         )
         dns_filtered = utilities.trim_dns_data(dns_data)
 
@@ -74,7 +113,9 @@ def main(args):
         dns_filtered,
         pkl_path,
         ext_IPs,
-        unk_int_IPs, timer=timer_data)
+        unk_int_IPs,
+        timer=timer_data,
+    )
 
     spreadsheet_tools.write_macs_sheet(mac_dict, wb)
 
@@ -82,20 +123,27 @@ def main(args):
 
     spreadsheet_tools.write_unknown_internals_sheet(unk_int_IPs, wb)
 
-    spreadsheet_tools.auto_adjust_width(wb['Analysis'])
+    spreadsheet_tools.auto_adjust_width(wb["Analysis"])
 
-    times = utilities.perform_zeekcut(
-        fields=['ts'],
-        log_file=os.path.join(zeek_logs_path, 'conn.log')
-    ).decode('utf-8').split('\n')[:-1]
+    times = (
+        utilities.perform_zeekcut(
+            fields=["ts"], log_file=os.path.join(zeek_logs_path, "conn.log")
+        )
+        .decode("utf-8")
+        .split("\n")[:-1]
+    )
     forward = sorted(times)
     start = float(forward[0])
-    end = float(forward[len(forward)-1])
+    end = float(forward[len(forward) - 1])
     cap_time = end - start
-    timer_data['Length of Capture time'] = "{} day(s) {} hour(s) {} minutes {} seconds".format(int(cap_time/86400),
-                                                                                               int(cap_time%86400/3600),
-                                                                                               int(cap_time%3600/60),
-                                                                                               int(cap_time%60))
+    timer_data[
+        "Length of Capture time"
+    ] = "{} day(s) {} hour(s) {} minutes {} seconds".format(
+        int(cap_time / 86400),
+        int(cap_time % 86400 / 3600),
+        int(cap_time % 3600 / 60),
+        int(cap_time % 60),
+    )
     spreadsheet_tools.write_stats_sheet(wb, timer_data)
     spreadsheet_tools.write_conn_states_sheet(conn_states, wb)
 

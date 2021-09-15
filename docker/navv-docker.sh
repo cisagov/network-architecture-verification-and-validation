@@ -44,14 +44,20 @@ unset OUTPUT_DIR
 unset PCAP_FILE
 unset ZEEK_LOGS_DIR
 unset CUSTOMER_NAME
+unset SHOW_VERSION
 
 while getopts 'vxeho:p:z:' OPTION; do
   case "$OPTION" in
 
-    # enable verbose bash execution tracing
+    # show version and exit
     v)
-      set -x
+      docker run --rm \
+        -e PUID=$(id -u) -e PGID=$(id -g) \
+        "$NAVV_DOCKER_IMAGE" --version ACME
+      exit 0
       ;;
+
+    # enable verbose bash execution tracing
     x)
       set -x
       ;;

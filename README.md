@@ -3,13 +3,13 @@
 The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) tool creates a spreadsheet for network traffic analysis from PCAP data and Zeek logs, automating Zeek analysis of PCAP files, the collation of Zeek logs and the dissection of `conn.log` and `dns.log` to create a summary or network traffic in an XLSX-formatted spreadsheet. After manually updating the spreadsheet with names and color codes for network segments (by CIDR-formatted address groups) and hosts (by IP address), running the tool again will integrate these labels and color coding into the spreadsheet to aid in conducting an evaluation of the network traffic.
 
 * [Installation](#Installation)
-    * [Latest Release](#InstallLatest)
-    * [Directly Using `git`](#InstallGit)
-    * [External Dependencies](#ExternalDeps)
-    * [Building and Packaging](#Packaging)
+    * [Latest release](#InstallLatest)
+    * [Directly using `git`](#InstallGit)
+    * [External dependencies](#ExternalDeps)
+    * [Building and packaging](#Packaging)
 * [Usage](#Usage)
     * [Running NAVV](#Running)
-    * [Identifying Network Segments and Hosts](#Analysis)
+    * [Identifying network segments and hosts](#Analysis)
 * [Docker](#Docker)
 * [Copyright](#Footer)
 * [Contact](#Contact)
@@ -20,25 +20,24 @@ The NAVV tool is a Python script requiring `python3` and its `pip` tool. As inst
 
 The recommended method for installing packages with `pip` is using [User Installs](https://pip.pypa.io/en/stable/user_guide/#user-installs) which installs to a user-specific location rather than system-wide. Usually this is done by running `pip install` with the `--user` flag. It is generally *not* recommended to run `pip` with elevated/administrator/root privileges.
 
-### <a name="InstallLatest"></a>Latest Release
+### <a name="InstallLatest"></a>Latest release
 
 Download the [latest NAVV release from GitHub](https://github.com/idaholab/NAVV/releases/latest). Either of the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) or the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) release artifacts should suffice.
 
 NAVV can then be installed via `pip`:
 
-```
+```shell
 $ pip3 install --user ~/Downloads/navv-3.0.0-py3-none-any.whl 
 Processing /home/user/Downloads/navv-3.0.0-py3-none-any.whl 
 …
 Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 navv-3.0.0 netaddr-0.8.0 openpyxl-3.0.7 tqdm-4.61.1
 ```
 
-### 
-### <a name="InstallGit"></a>Directly Using `git`
+### <a name="InstallGit"></a>Directly using `git`
 
 NAVV can be installed via `pip` using `git`:
 
-```
+```shell
 $ python3 -m pip install --user  git+https://github.com/idaholab/NAVV
 Collecting git+https://github.com/idaholab/NAVV
   Cloning https://github.com/idaholab/NAVV to /tmp/pip-req-build-pl6llgda
@@ -52,7 +51,7 @@ usage: navv [-h] [-o OUTPUT_DIR] [-p PCAP] [-z ZEEK_LOGS] customer_name
 …
 ```
 
-### <a name="ExternalDeps"></a>External Dependencies
+### <a name="ExternalDeps"></a>External dependencies
 
 These Python libraries will be automatically [downloaded](https://pypi.org/) and installed as runtime dependencies of the NAVV tool:
 
@@ -64,13 +63,13 @@ These Python libraries will be automatically [downloaded](https://pypi.org/) and
 
 The NAVV tool requires [Zeek](https://zeek.org/) to be installed with the `zeek` and `zeek-cut` utilities available in the `PATH`. Please consult the [Zeek manual](https://docs.zeek.org/en/current/install.html) for operating system-specifc instructions for installing and configuring Zeek. A NAVV [Docker](#Docker) image can be built which bundles both Zeek and the NAVV tool together.
 
-### <a name="Packaging"></a>Building and Packaging
+### <a name="Packaging"></a>Building and packaging
 
 PyPA's [build](https://packaging.python.org/key_projects/#build) module can be used to build and package the NAVV tool. At the command line, navigate to the directory containing the NAVV source code, then:
 
 * install the Python 3 `build` module
 
-```
+```shell
 $ python3 -m pip install --user --upgrade build
 Collecting build
   Downloading build-0.4.0-py2.py3-none-any.whl (14 kB)
@@ -82,7 +81,7 @@ Successfully installed build-0.4.0 packaging-20.9 pep517-0.10.0 pyparsing-2.4.7 
 
 * build and package the NAVV tool:
 
-```
+```shell
 $ python3 -m build
 Found existing installation: setuptools 49.2.1
 Uninstalling setuptools-49.2.1:
@@ -105,7 +104,7 @@ removing build/bdist.linux-x86_64/wheel
 
 You will then see the packaged NAVV artifacts (the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) and the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) files) in the `dist/` directory:
 
-```
+```shell
 $  ls -l ./dist/
 total 672
 -rw-r--r-- 1 build build 673878 Jun 15 22:05 navv-3.0.0-py3-none-any.whl
@@ -116,7 +115,7 @@ You can then follow the same method from the [Latest Release](#InstallLatest) se
 
 Note that the resulting packaged NAVV artifacts do not contain the [external dependencies](#ExternalDeps) required to run the tool. Those Python libraries will be automatically [downloaded](https://pypi.org/) during the installation of the NAVV tool. If you are packaging the NAVV tool for distribution to a host without internet access, you will need to use `pip` to download the [external dependencies](#ExternalDeps) separately and install them prior to installing the NAVV tool.
 
-```
+```shell
 $ python3 -m pip download lxml netaddr openpyxl tqdm
 …
 Saved ./lxml-4.6.3-cp39-cp39-manylinux2014_x86_64.whl
@@ -129,7 +128,7 @@ Successfully downloaded lxml netaddr openpyxl tqdm et-xmlfile
 
 Transfer the downloaded `.whl` files and the NAVV `.whl` file to the offline host and install them:
 
-```
+```shell
 $ ls -lh
 total 9.4M
 -rw-r--r-- 1 build build 4.6K Jun 15 22:21 et_xmlfile-1.1.0-py3-none-any.whl
@@ -162,7 +161,7 @@ The NAVV tool can be run with the command `python3 -m navv`, or simply `navv` if
 
 Run the NAVV tool with `--help` to get a listing of its arguments:
 
-```
+```shell
 $ python3 -m navv --help
 usage: __main__.py [-h] [-o OUTPUT_DIR] [-p PCAP] [-z ZEEK_LOGS] customer_name
 
@@ -184,7 +183,7 @@ The NAVV tool will accept as input a PCAP file, in which case it will run `zeek`
 
 For example:
 
-```
+```shell
 analyst@host tmp> ll
 total 178M
 drwxrwxr-x 2 analyst analyst    6 Jun 15 22:36 ACME_logs
@@ -228,7 +227,7 @@ total 208896
 
 As the example illustrates, the NAVV tool generated `.pkl` and `.xlsx` files as a result of the processing of `ACME.pcap`.
 
-### <a name="Analysis"></a>Identifying Network Segments and Hosts
+### <a name="Analysis"></a>Identifying network segments and hosts
 
 Adding information about network segments and/or inventory can assist in packet capture analysis. Open the NAVV-generated `.xlsx` file and navigate to the `Segments` tab. Enter the relevant network segments and choose background colors for the corresponding cells. For example: 
 
@@ -253,7 +252,7 @@ Developers, by contributing to this software project, you are agreeing to the fo
 * You agree your contributions are submitted under the BSD 3-Clause license.
 * You represent you are authorized to make the contributions and grant the license. If your employer has rights to intellectual property that includes your contributions, you represent that you have received permission to make contributions and grant the required license on behalf of that employer.
 
-## Other Software
+## Other software
 
 Idaho National Laboratory is a cutting edge research facility which is constantly producing high quality research and software. Feel free to take a look at our other software and scientific offerings at:
 
