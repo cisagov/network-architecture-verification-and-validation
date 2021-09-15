@@ -35,7 +35,11 @@ def parse_args():
         help="Path to pcap file. Will run zeek and output logs in cwd or --zeek-logs",
     )
     parser.add_argument(
-        "-v", "--version", help="Display NAVV version", dest='show_version', action='store_true'
+        "-v",
+        "--version",
+        help="Display NAVV version",
+        dest="show_version",
+        action="store_true",
     )
     parser.add_argument(
         "-z", "--zeek-logs", help="Directory containing log files", default=os.getcwd()
