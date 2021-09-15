@@ -14,6 +14,12 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 * [Copyright](#Footer)
 * [Contact](#Contact)
 
+[![GitHub Build Status](https://github.com/idaholab/network-architecture-verification-and-validation/workflows/navv-build-push-ghcr/badge.svg)](https://github.com/idaholab/network-architecture-verification-and-validation/actions)
+[![Coverage Status](https://coveralls.io/repos/github/idaholab/network-architecture-verification-and-validation/badge.svg?branch=develop)](https://coveralls.io/github/idaholab/network-architecture-verification-and-validation?branch=develop)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/alerts/)
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/context:python)
+[![Known Vulnerabilities](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation/develop/badge.svg)](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation)
+
 ## <a name="Installation"></a>Installation
 
 The NAVV tool is a Python script requiring `python3` and its `pip` tool. As installation of Python varies from platform to platform, please consult your operating system's documentation or the [python.org Wiki](https://wiki.python.org/moin/BeginnersGuide/Download) to install and configure Python 3 on your system.
