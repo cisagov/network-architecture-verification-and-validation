@@ -1,0 +1,3 @@
+# Note: Add any additional requirements to setup.cfg's install_requires field
+--editable .
+wheel

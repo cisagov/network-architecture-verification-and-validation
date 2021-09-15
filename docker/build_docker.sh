@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Copyright 2021 Battelle Energy Alliance, LLC
+
 set -e
 set -o pipefail
 set -u
@@ -16,6 +18,6 @@ export SCRIPT_PATH="$($DIRNAME $($REALPATH -e "${BASH_SOURCE[0]}"))"
 
 pushd "$SCRIPT_PATH"/.. >/dev/null 2>&1
 
-docker build -f docker/Dockerfile -t ghcr.io/idaholab/navv:latest "$@" .
+docker build -f docker/Dockerfile -t ghcr.io/idaholab/network-architecture-verification-and-validation:latest "$@" .
 
 popd >/dev/null 2>&1
