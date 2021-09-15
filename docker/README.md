@@ -86,10 +86,10 @@ Then use `navv-docker.sh` as described above.
 It's possible to use the Docker image as a build environment from which the packaged NAVV Python library and its dependencies can be extracted for native installation on another system:
 
 ```shell
-$ mkdir ./build
+$ mkdir ./dist
 $ docker run --rm --entrypoint=/bin/bash \
   -u $(id -u) \
-  -v $(pwd)/build:/build \
+  -v $(pwd)/dist:/dist \
   ghcr.io/idaholab/navv:latest navv-build-for-export.sh
 Collecting build
 …

@@ -65,9 +65,9 @@ RUN python3 -m pip install --no-cache-dir /usr/local/src/navv && \
 RUN groupadd --gid ${DEFAULT_GID} ${PUSER} && \
     useradd --uid ${DEFAULT_UID} --gid ${DEFAULT_GID} --home /home/${PUSER} ${PUSER} && \
     usermod -a -G tty ${PUSER} && \
-    mkdir -p /home/${PUSER} /build && \
-    chown ${DEFAULT_UID}:${DEFAULT_GID} /home/${PUSER} /build && \
-    chmod 755 /home/${PUSER} /build
+    mkdir -p /home/${PUSER} /dist && \
+    chown ${DEFAULT_UID}:${DEFAULT_GID} /home/${PUSER} /dist && \
+    chmod 755 /home/${PUSER} /dist
 
 # entrypoint to drop privileges to non-privileged user and run navv
 ENTRYPOINT [ "/usr/local/bin/docker-uid-gid-setup.sh", "/usr/bin/python3", "-m", "navv" ]
