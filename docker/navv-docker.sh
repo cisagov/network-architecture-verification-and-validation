@@ -18,7 +18,7 @@ shopt -s nullglob
 ENCODING="utf-8"
 
 # default docker image name (can be overriden via NAVV_DOCKER_IMAGE env. var.)
-NAVV_DOCKER_IMAGE="${NAVV_DOCKER_IMAGE:-ghcr.io/idaholab/navv:latest}"
+NAVV_DOCKER_IMAGE="${NAVV_DOCKER_IMAGE:-ghcr.io/idaholab/network-architecture-verification-and-validation:latest}"
 
 # run navv -h to get help
 function print_usage() {

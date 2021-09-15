@@ -22,7 +22,7 @@ The recommended method for installing packages with `pip` is using [User Install
 
 ### <a name="InstallLatest"></a>Latest release
 
-Download the [latest NAVV release from GitHub](https://github.com/idaholab/NAVV/releases/latest). Either of the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) or the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) release artifacts should suffice.
+Download the [latest NAVV release from GitHub](https://github.com/idaholab/network-architecture-verification-and-validation/releases/latest). Either of the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) or the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) release artifacts should suffice.
 
 NAVV can then be installed via `pip`:
 
@@ -38,10 +38,10 @@ Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 navv-3.0.0 netaddr-0.8.0 open
 NAVV can be installed via `pip` using `git`:
 
 ```shell
-$ python3 -m pip install --user  git+https://github.com/idaholab/NAVV
-Collecting git+https://github.com/idaholab/NAVV
-  Cloning https://github.com/idaholab/NAVV to /tmp/pip-req-build-pl6llgda
-  Running command git clone -q https://github.com/idaholab/NAVV /tmp/pip-req-build-pl6llgda
+$ python3 -m pip install --user  git+https://github.com/idaholab/network-architecture-verification-and-validation
+Collecting git+https://github.com/idaholab/network-architecture-verification-and-validation
+  Cloning https://github.com/idaholab/network-architecture-verification-and-validation to /tmp/pip-req-build-pl6llgda
+  Running command git clone -q https://github.com/idaholab/network-architecture-verification-and-validation /tmp/pip-req-build-pl6llgda
   Installing build dependencies ... done
 …
 Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 navv-3.0.0 netaddr-0.8.0 openpyxl-3.0.7 tqdm-4.61.1
@@ -243,7 +243,7 @@ See [`docker/README.md`](./docker/README.md) for setup and instructions for runn
 
 ## <a name="Footer"></a>Copyright
 
-[NAVV](https://github.com/idaholab/NAVV) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
+[NAVV](https://github.com/idaholab/network-architecture-verification-and-validation) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
 See [`LICENSE`](./LICENSE) for the terms of its release.
 
