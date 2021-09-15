@@ -17,7 +17,7 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 [![GitHub Build Status](https://github.com/idaholab/network-architecture-verification-and-validation/workflows/navv-build-push-ghcr/badge.svg)](https://github.com/idaholab/network-architecture-verification-and-validation/actions)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/alerts/)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/context:python)
-[![Known Vulnerabilities](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation/develop/badge.svg)](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation)
+[![Known Vulnerabilities](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation/badge.svg)](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation)
 
 ## <a name="Installation"></a>Installation
 
