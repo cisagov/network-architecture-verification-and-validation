@@ -5,6 +5,7 @@ on:
     branches:
       - 'develop'
   workflow_dispatch:
+  repository_dispatch:
 
 jobs:
   docker:
