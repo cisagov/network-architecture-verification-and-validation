@@ -40,9 +40,7 @@ def parse_args():
         dest="show_version",
         action="store_true",
     )
-    parser.add_argument(
-        "-z", "--zeek-logs", help="Directory containing log files", default=os.getcwd()
-    )
+    parser.add_argument("-z", "--zeek-logs", help="Directory containing log files", default=os.getcwd())
     return parser.parse_args()
 
 
@@ -88,9 +86,7 @@ def main(args):
         .split("\n")[:-1]
     )
     # turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = spreadsheet_tools.create_analysis_array(
-        zeek_data, timer=timer_data
-    )
+    rows, mac_dict = spreadsheet_tools.create_analysis_array(zeek_data, timer=timer_data)
 
     # get dns data for resolution
     pkl_path = os.path.join(out_dir, "{}_dns_data.pkl".format(args.customer_name))
@@ -129,9 +125,7 @@ def main(args):
     spreadsheet_tools.auto_adjust_width(wb["Analysis"])
 
     times = (
-        utilities.perform_zeekcut(
-            fields=["ts"], log_file=os.path.join(zeek_logs_path, "conn.log")
-        )
+        utilities.perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs_path, "conn.log"))
         .decode("utf-8")
         .split("\n")[:-1]
     )
@@ -139,9 +133,7 @@ def main(args):
     start = float(forward[0])
     end = float(forward[len(forward) - 1])
     cap_time = end - start
-    timer_data[
-        "Length of Capture time"
-    ] = "{} day(s) {} hour(s) {} minutes {} seconds".format(
+    timer_data["Length of Capture time"] = "{} day(s) {} hour(s) {} minutes {} seconds".format(
         int(cap_time / 86400),
         int(cap_time % 86400 / 3600),
         int(cap_time % 3600 / 60),
