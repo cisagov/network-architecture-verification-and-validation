@@ -23,7 +23,7 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 
 The NAVV tool is a Python script requiring `python3` and its `pip` tool. As installation of Python varies from platform to platform, please consult your operating system's documentation or the [python.org Wiki](https://wiki.python.org/moin/BeginnersGuide/Download) to install and configure Python 3 on your system.
 
-The recommended method for installing packages with `pip` is using [User Installs](https://pip.pypa.io/en/stable/user_guide/#user-installs) which installs to a user-specific location rather than system-wide. Usually this is done by running `pip install` with the `--user` flag. It is generally *not* recommended to run `pip` with elevated/administrator/root privileges.
+The recommended method for installing packages with `pip` is using [User Installs](https://pip.pypa.io/en/stable/user_guide/#user-installs) which installs to a user-specific location rather than system-wide. Usually this is done by running `pip` with the `--user` flag. It is generally *not* recommended to run `pip` with elevated/administrator/root privileges.
 
 ### <a name="InstallLatest"></a>Latest release
 
@@ -32,10 +32,16 @@ Download the [latest NAVV release from GitHub](https://github.com/idaholab/netwo
 NAVV can then be installed via `pip`:
 
 ```shell
-$ pip3 install --user ~/Downloads/navv-3.0.0-py3-none-any.whl 
+$ python3 -m pip install --user ~/Downloads/navv-3.0.0-py3-none-any.whl 
 Processing /home/user/Downloads/navv-3.0.0-py3-none-any.whl 
 …
 Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 navv-3.0.0 netaddr-0.8.0 openpyxl-3.0.7 tqdm-4.61.1
+```
+
+Alternately, also using `pip`, to install the latest [release from PyPI](https://pypi.org/project/navv/):
+
+```
+python3 -m pip install -U navv
 ```
 
 ### <a name="InstallGit"></a>Directly using `git`
@@ -143,11 +149,11 @@ total 9.4M
 -rw-r--r-- 1 build build 238K Jun 15 22:21 openpyxl-3.0.7-py2.py3-none-any.whl
 -rw-r--r-- 1 build build  75K Jun 15 22:21 tqdm-4.61.1-py2.py3-none-any.whl
 
-$ pip3 install et_xmlfile-1.1.0-py3-none-any.whl lxml-4.6.3-cp39-cp39-manylinux2014_x86_64.whl netaddr-0.8.0-py2.py3-none-any.whl openpyxl-3.0.7-py2.py3-none-any.whl tqdm-4.61.1-py2.py3-none-any.whl 
+$ python3 -m pip install et_xmlfile-1.1.0-py3-none-any.whl lxml-4.6.3-cp39-cp39-manylinux2014_x86_64.whl netaddr-0.8.0-py2.py3-none-any.whl openpyxl-3.0.7-py2.py3-none-any.whl tqdm-4.61.1-py2.py3-none-any.whl 
 …
 Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 netaddr-0.8.0 openpyxl-3.0.7 tqdm-4.61.1
 
-$ pip3 install navv-3.0.0-py3-none-any.whl 
+$ python3 -m pip install navv-3.0.0-py3-none-any.whl 
 …
 Successfully installed navv-3.0.0
 

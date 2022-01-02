@@ -2,6 +2,7 @@
 
 from navv import network_analysis
 
+
 def main():
     network_analysis.main(network_analysis.parse_args())
 
