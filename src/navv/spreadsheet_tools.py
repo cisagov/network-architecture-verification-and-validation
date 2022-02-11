@@ -257,6 +257,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
     """Function take IP Address and uses collected dns_data, inventory, and segment information to give IP Addresses in analysis context.
 
     Priority flow:
+        * DHCP Broadcasting
         * Multicast
         * Within Segments identified
         * Within Inventory, not within an Identified Segment
@@ -265,7 +266,18 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
 
     This will capture the name description and the color coding identified within the worksheet.
     """
-    if netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
+    #
+    if ip_to_check == str("0.0.0.0"):
+        desc_to_change = (
+            "Unassigned IPv4",
+            IPV6_CELL_COLOR,
+        )
+    elif ip_to_check == str("255.255.255.255"):
+        desc_to_change = (
+            "IPv4 All Subnet Broadcast",
+            IPV6_CELL_COLOR,
+        )
+    elif netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
         desc_to_change = (
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
