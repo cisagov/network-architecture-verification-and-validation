@@ -1,0 +1,16 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	ssl
+#open	2022-02-11-02-40-08
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	cipher	curve	server_name	resumed	last_alert	next_protocol	established	ssl_history	cert_chain_fps	client_cert_chain_fps	sni_matches_cert	validation_status
+#types	time	string	addr	port	addr	port	string	string	string	string	bool	string	string	bool	string	vector[string]	vector[string]	bool	string
+1644572026.880377	C1wpR94ZippnxLSZIl	192.168.40.23	36702	151.101.2.217	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	x25519	app.launchdarkly.com	F	-	h2	T	CsxuknGIti	c2fcd4a938d29ec98570bc7bb3bd56c78458518ced7025abc6ca1d1e5c1b2403,1dd095449ffb3cff14b2224d596b83fd42f2b47683553c797d11150c918691bd	(empty)	T	ok
+1644572030.498890	C6KVvMdZ1QHGpZkBg	192.168.1.150	52588	74.125.142.101	443	TLSv13	TLS_AES_256_GCM_SHA384	x25519	android.clients.google.com	F	-	-	T	CsiI	-	-	-	-
+1644572031.660419	CHHrPY2rDz7v4ZUMr1	192.168.1.150	52603	74.125.142.101	443	TLSv13	TLS_AES_256_GCM_SHA384	x25519	android.clients.google.com	F	-	-	T	CsiI	-	-	-	-
+1644572032.807132	CPSmbBdO0WRfdq8Lf	192.168.1.150	52606	74.125.142.101	443	TLSv13	TLS_AES_256_GCM_SHA384	x25519	android.clients.google.com	F	-	-	T	CsiI	-	-	-	-
+1644572033.954787	CqnjbG1H0BIDnoOS2b	192.168.1.150	52609	74.125.142.101	443	TLSv13	TLS_AES_256_GCM_SHA384	x25519	android.clients.google.com	F	-	-	T	CsiI	-	-	-	-
+1644572035.099602	CyLVS22MAcA4jeET	192.168.1.150	52612	74.125.142.101	443	TLSv13	TLS_AES_256_GCM_SHA384	x25519	android.clients.google.com	F	-	-	T	CsiI	-	-	-	-
+1644572036.826601	CGYfoA1dH0zjatzzia	192.168.1.156	60588	40.108.248.27	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384	secp384r1	inl-my.sharepoint.com	F	-	-	T	CsxuknGIi	63e0230e42033c9af8640185f0d7196234e4da84763fa1d2350c58887c3429e3,2f6889961a7ca7067e8ba103c2cf9b9a924f8ca293f11178e23a1978d2f133d3	(empty)	T	ok
+#close	2022-02-11-02-40-08

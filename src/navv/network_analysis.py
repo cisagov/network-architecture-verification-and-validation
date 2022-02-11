@@ -25,13 +25,13 @@ def parse_args():
     parser.add_argument(
         "-o",
         "--output-dir",
-        help="Directory to place resultant files in",
+        help="Directory to place resultant analysis files in. Defaults to current working directory.",
         default=os.getcwd(),
     )
     parser.add_argument(
         "-p",
         "--pcap",
-        help="Path to pcap file. Will run zeek and output logs in cwd or --zeek-logs",
+        help="Path to pcap file. NAVV requires zeek logs or pcap. If used, zeek will run on pcap to create new logs.",
     )
     parser.add_argument(
         "-v",
@@ -40,7 +40,12 @@ def parse_args():
         dest="show_version",
         action="store_true",
     )
-    parser.add_argument("-z", "--zeek-logs", help="Directory containing log files", default=os.getcwd())
+    parser.add_argument(
+        "-z",
+        "--zeek-logs",
+        help="Path to store or contain zeek log files. Defaults to current working directory.",
+        default=os.getcwd()
+    )
     return parser.parse_args()
 
 
@@ -61,8 +66,8 @@ def main(args):
 
     services, conn_states = spreadsheet_tools.get_package_data()
     timer_data = dict()
-    inventory = spreadsheet_tools.get_inventory_data(wb["Inventory"])
     segments = spreadsheet_tools.get_segments_data(wb["Segments"])
+    inventory = spreadsheet_tools.get_inventory_data(wb["Inventory"])
     zeek_logs_path = args.zeek_logs
 
     if args.pcap:
