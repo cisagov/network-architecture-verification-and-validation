@@ -44,7 +44,7 @@ def parse_args():
         "-z",
         "--zeek-logs",
         help="Path to store or contain zeek log files. Defaults to current working directory.",
-        default=os.getcwd()
+        default=os.getcwd(),
     )
     return parser.parse_args()
 
