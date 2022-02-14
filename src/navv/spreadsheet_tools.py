@@ -254,25 +254,50 @@ def handle_service(row, services):
 
 
 def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
-    if netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
+    """Function take IP Address and uses collected dns_data, inventory, and segment information to give IP Addresses in analysis context.
+
+    Priority flow:
+        * DHCP Broadcasting
+        * Multicast
+        * Within Segments identified
+        * Within Inventory, not within an Identified Segment
+        * Private Network
+        * External (Public IP space) or Internet
+
+    This will capture the name description and the color coding identified within the worksheet.
+    """
+    #
+    if ip_to_check == str("0.0.0.0"):
+        desc_to_change = (
+            "Unassigned IPv4",
+            IPV6_CELL_COLOR,
+        )
+    elif ip_to_check == str("255.255.255.255"):
+        desc_to_change = (
+            "IPv4 All Subnet Broadcast",
+            IPV6_CELL_COLOR,
+        )
+    elif netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
         desc_to_change = (
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
         )
-    elif ip_to_check in inventory:
-        desc_to_change = (inventory[ip_to_check].name, inventory[ip_to_check].color)
     elif ip_to_check in segments[len(segments) - 1]:
         for segment in segments[:-1]:
             if ip_to_check not in segment.network:
                 continue
             if ip_to_check in dns_data:
                 desc_to_change = (dns_data[ip_to_check], segment.color)
+            if ip_to_check in inventory:
+                desc_to_change = (inventory[ip_to_check].name, segment.color)
             else:
                 desc_to_change = (
                     f"Unknown device in {segment.name} network",
                     segment.color,
                 )
                 unk_int_IPs.add(ip_to_check)
+    elif ip_to_check in inventory:
+        desc_to_change = (inventory[ip_to_check].name, inventory[ip_to_check].color)
     elif netaddr.IPAddress(ip_to_check).is_private():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
