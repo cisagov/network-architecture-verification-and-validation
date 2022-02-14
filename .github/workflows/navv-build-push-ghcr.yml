@@ -45,4 +45,4 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/navv:latest
+          tags: ghcr.io/${{ github.repository_owner }}/navv:latest,ghcr.io/${{ github.repository_owner }}/network-architecture-verification-and-validation:latest
