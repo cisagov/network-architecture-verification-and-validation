@@ -4,11 +4,11 @@ FROM ubuntu:22.04
 
 LABEL maintainer="seth.grover@inl.gov"
 LABEL org.opencontainers.image.authors='seth.grover@inl.gov'
-LABEL org.opencontainers.image.url='https://github.com/idaholab/network-architecture-verification-and-validation'
-LABEL org.opencontainers.image.documentation='https://github.com/idaholab/network-architecture-verification-and-validation/blob/master/README.md'
-LABEL org.opencontainers.image.source='https://github.com/idaholab/network-architecture-verification-and-validation'
+LABEL org.opencontainers.image.url='https://github.com/cisagov/network-architecture-verification-and-validation'
+LABEL org.opencontainers.image.documentation='https://github.com/cisagov/network-architecture-verification-and-validation/blob/master/README.md'
+LABEL org.opencontainers.image.source='https://github.com/cisagov/network-architecture-verification-and-validation'
 LABEL org.opencontainers.image.vendor='Idaho National Laboratory'
-LABEL org.opencontainers.image.title='idaholab/network-architecture-verification-and-validation'
+LABEL org.opencontainers.image.title='cisagov/network-architecture-verification-and-validation'
 LABEL org.opencontainers.image.description='The NAVV (Network Architecture Verification and Validation) tool'
 
 ENV DEBIAN_FRONTEND noninteractive

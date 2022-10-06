@@ -15,10 +15,10 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 * [Contact](#Contact)
 
 [![PyPI Release](https://img.shields.io/pypi/v/navv)](https://pypi.python.org/pypi/navv/)
-[![Docker Image](https://github.com/idaholab/network-architecture-verification-and-validation/workflows/navv-build-push-ghcr/badge.svg)](https://github.com/idaholab/network-architecture-verification-and-validation/actions)
-[![Total Alerts](https://img.shields.io/lgtm/alerts/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/alerts/)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/idaholab/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/idaholab/network-architecture-verification-and-validation/context:python)
-[![Known Vulnerabilities](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation/badge.svg)](https://snyk.io/test/github/idaholab/network-architecture-verification-and-validation)
+[![Docker Image](https://github.com/cisagov/network-architecture-verification-and-validation/workflows/navv-build-push-ghcr/badge.svg)](https://github.com/cisagov/network-architecture-verification-and-validation/actions)
+[![Total Alerts](https://img.shields.io/lgtm/alerts/g/cisagov/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/cisagov/network-architecture-verification-and-validation/alerts/)
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/cisagov/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/cisagov/network-architecture-verification-and-validation/context:python)
+[![Known Vulnerabilities](https://snyk.io/test/github/cisagov/network-architecture-verification-and-validation/badge.svg)](https://snyk.io/test/github/cisagov/network-architecture-verification-and-validation)
 
 ## <a name="Installation"></a>Installation
 
@@ -28,7 +28,7 @@ The recommended method for installing packages with `pip` is using [User Install
 
 ### <a name="InstallLatest"></a>Latest release
 
-Download the [latest NAVV release from GitHub](https://github.com/idaholab/network-architecture-verification-and-validation/releases/latest). Either of the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) or the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) release artifacts should suffice.
+Download the [latest NAVV release from GitHub](https://github.com/cisagov/network-architecture-verification-and-validation/releases/latest). Either of the `.whl` [built distribution](https://packaging.python.org/glossary/#term-Built-Distribution) or the `.tar.gz` [source archive](https://packaging.python.org/glossary/#term-Source-Archive) release artifacts should suffice.
 
 NAVV can then be installed via `pip`:
 
@@ -50,10 +50,10 @@ python3 -m pip install -U navv
 NAVV can be installed via `pip` using `git`:
 
 ```shell
-$ python3 -m pip install --user  git+https://github.com/idaholab/network-architecture-verification-and-validation
-Collecting git+https://github.com/idaholab/network-architecture-verification-and-validation
-  Cloning https://github.com/idaholab/network-architecture-verification-and-validation to /tmp/pip-req-build-pl6llgda
-  Running command git clone -q https://github.com/idaholab/network-architecture-verification-and-validation /tmp/pip-req-build-pl6llgda
+$ python3 -m pip install --user  git+https://github.com/cisagov/network-architecture-verification-and-validation
+Collecting git+https://github.com/cisagov/network-architecture-verification-and-validation
+  Cloning https://github.com/cisagov/network-architecture-verification-and-validation to /tmp/pip-req-build-pl6llgda
+  Running command git clone -q https://github.com/cisagov/network-architecture-verification-and-validation /tmp/pip-req-build-pl6llgda
   Installing build dependencies ... done
 …
 Successfully installed et-xmlfile-1.1.0 lxml-4.6.3 navv-3.0.0 netaddr-0.8.0 openpyxl-3.0.7 tqdm-4.61.1
@@ -255,7 +255,7 @@ See [`docker/README.md`](./docker/README.md) for setup and instructions for runn
 
 ## <a name="Footer"></a>Copyright
 
-[NAVV](https://github.com/idaholab/network-architecture-verification-and-validation) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
+[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
 See [`LICENSE`](./LICENSE) for the terms of its release.
 
@@ -269,7 +269,7 @@ Developers, by contributing to this software project, you are agreeing to the fo
 Idaho National Laboratory is a cutting edge research facility which is constantly producing high quality research and software. Feel free to take a look at our other software and scientific offerings at:
 
 * [Primary Technology Offerings Page](https://www.inl.gov/inl-initiatives/technology-deployment)
-* [Supported Open Source Software](https://github.com/idaholab)
+* [Supported Open Source Software](https://github.com/cisagov)
 * [Raw Experiment Open Source Software](https://github.com/IdahoLabResearch)
 * [Unsupported Open Source Software](https://github.com/IdahoLabCuttingBoard)
 

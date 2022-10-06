@@ -8,7 +8,7 @@
 
 ## <a name="Build"></a>Building the Docker image
 
-Run `./docker/build_docker.sh` to build the `ghcr.io/idaholab/network-architecture-verification-and-validation:latest` image. You can include `--force-rm --no-cache` to build the image from scratch without using any previously cached layers.
+Run `./docker/build_docker.sh` to build the `ghcr.io/cisagov/network-architecture-verification-and-validation:latest` image. You can include `--force-rm --no-cache` to build the image from scratch without using any previously cached layers.
 
 This build process doesn't require any previous building or configuration of the `navv` Python code: it's entirely self-contained.
 
@@ -17,7 +17,7 @@ $ ./docker/build_docker.sh --force-rm --no-cache
 Sending build context to Docker daemon  6.873MB
 Step 1/17 : FROM ubuntu:latest
 …
-Successfully tagged ghcr.io/idaholab/network-architecture-verification-and-validation:latest
+Successfully tagged ghcr.io/cisagov/network-architecture-verification-and-validation:latest
 
 $ docker images | head
 REPOSITORY                                   TAG           IMAGE ID       CREATED          SIZE
@@ -65,7 +65,7 @@ Use the script `./docker/backup_docker.sh`:
 ```shell
 $ /home/user/navv/docker/backup_docker.sh
 Transfer navv-docker_20210219_114718_59a26a647a3f.tar.gz and navv-docker.sh to destination host
-Import ghcr.io/idaholab/network-architecture-verification-and-validation:latest with docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
+Import ghcr.io/cisagov/network-architecture-verification-and-validation:latest with docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
 Run with navv-docker.sh
 ```
 
@@ -76,7 +76,7 @@ docker load -i navv-docker_20210219_114718_59a26a647a3f.tar.gz
 7a8aada2513d: Loading layer [==================================================>]  6.878MB/6.878MB
 5c42a13ea084: Loading layer [==================================================>]  42.98MB/42.98MB
 b62a2ff84161: Loading layer [==================================================>]  341.5kB/341.5kB
-Loaded image: ghcr.io/idaholab/network-architecture-verification-and-validation:latest
+Loaded image: ghcr.io/cisagov/network-architecture-verification-and-validation:latest
 ```
 
 Then use `navv-docker.sh` as described above.
@@ -90,7 +90,7 @@ $ mkdir ./dist
 $ docker run --rm --entrypoint=/bin/bash \
   -u $(id -u) \
   -v $(pwd)/dist:/dist \
-  ghcr.io/idaholab/network-architecture-verification-and-validation:latest navv-build-for-export.sh
+  ghcr.io/cisagov/network-architecture-verification-and-validation:latest navv-build-for-export.sh
 Collecting build
 …
 total 9.4M
@@ -104,6 +104,6 @@ total 9.4M
 ```
 ## <a name="Footer"></a>Copyright
 
-[NAVV](https://github.com/idaholab/network-architecture-verification-and-validation) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
+[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2021 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
 See [`LICENSE`](./LICENSE) for the terms of its release.
