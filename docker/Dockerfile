@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-# Copyright 2021 Battelle Energy Alliance, LLC
+# Copyright 2023 Battelle Energy Alliance, LLC
 
 LABEL maintainer="seth.grover@inl.gov"
 LABEL org.opencontainers.image.authors='seth.grover@inl.gov'

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2021 Battelle Energy Alliance, LLC
+# Copyright 2023 Battelle Energy Alliance, LLC
 
 # navv_docker.sh
 #
@@ -17,20 +17,29 @@ shopt -s nullglob
 
 ENCODING="utf-8"
 
-# default docker image name (can be overriden via NAVV_DOCKER_IMAGE env. var.)
+# image name (can be overriden via NAVV_DOCKER_IMAGE env. var.)
 NAVV_DOCKER_IMAGE="${NAVV_DOCKER_IMAGE:-ghcr.io/cisagov/network-architecture-verification-and-validation:latest}"
+# container engine (docker vs. podman, can be overriden via CONTAINER_ENGINE env. var.)
+CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
+if [[ "$CONTAINER_ENGINE" == "podman" ]]; then
+  PUID=0
+  PGID=0
+else
+  PUID=$(id -u)
+  PGID=$(id -g)
+fi
 
 # run navv -h to get help
 function print_usage() {
-  docker run --rm "$NAVV_DOCKER_IMAGE" -h | sed "s/\(optional arguments\):/\1 (use short option syntax for docker):/" >&2
+  $CONTAINER_ENGINE run --rm "$NAVV_DOCKER_IMAGE" -h | sed "s/\(options\):/\1 (use short option syntax for $CONTAINER_ENGINE):/" >&2
 }
 
 # figure out actual executable names for realpath, dirname and basename
 [[ "$(uname -s)" = 'Darwin' ]] && REALPATH=grealpath || REALPATH=realpath
 [[ "$(uname -s)" = 'Darwin' ]] && DIRNAME=gdirname || DIRNAME=dirname
 [[ "$(uname -s)" = 'Darwin' ]] && BASENAME=gbasename || BASENAME=basename
-if ! (type "$REALPATH" && type "$DIRNAME" && type "$BASENAME" && type docker) > /dev/null; then
-  echo "$(basename "${BASH_SOURCE[0]}") requires $REALPATH, $DIRNAME, $BASENAME and docker"
+if ! (type "$REALPATH" && type "$DIRNAME" && type "$BASENAME" && type $CONTAINER_ENGINE) > /dev/null; then
+  echo "$(basename "${BASH_SOURCE[0]}") requires $REALPATH, $DIRNAME, $BASENAME and $CONTAINER_ENGINE"
   exit 1
 fi
 
@@ -51,7 +60,7 @@ while getopts 'vxeho:p:z:' OPTION; do
 
     # show version and exit
     v)
-      docker run --rm \
+      $CONTAINER_ENGINE run --rm \
         -e PUID=$(id -u) -e PGID=$(id -g) \
         "$NAVV_DOCKER_IMAGE" --version ACME
       exit 0
@@ -171,9 +180,9 @@ elif [[ -r "$SCRIPT_PATH"/local.zeek ]]; then
   MOUNT_ARGS+=( "$SCRIPT_PATH/local.zeek:/opt/zeek/share/zeek/site/local.zeek:ro" )
 fi
 
-# run the navv docker image and remove it when it finishes
-docker run --rm \
-  -e PUID=$(id -u) -e PGID=$(id -g) \
+# run a navv container and remove it when it finishes
+$CONTAINER_ENGINE run --rm \
+  -e PUID=$PUID -e PGID=$PUID \
   -w /output \
   "${MOUNT_ARGS[@]}" \
   "$NAVV_DOCKER_IMAGE" \
