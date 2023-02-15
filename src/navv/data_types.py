@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2021 Battelle Energy Alliance, LLC
+# Copyright 2023 Battelle Energy Alliance, LLC
 
 import netaddr
 
