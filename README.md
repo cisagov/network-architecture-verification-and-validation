@@ -16,9 +16,6 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 
 [![PyPI Release](https://img.shields.io/pypi/v/navv)](https://pypi.python.org/pypi/navv/)
 [![Docker Image](https://github.com/cisagov/network-architecture-verification-and-validation/workflows/navv-build-push-ghcr/badge.svg)](https://github.com/cisagov/network-architecture-verification-and-validation/actions)
-[![Total Alerts](https://img.shields.io/lgtm/alerts/g/cisagov/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/cisagov/network-architecture-verification-and-validation/alerts/)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/cisagov/network-architecture-verification-and-validation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/cisagov/network-architecture-verification-and-validation/context:python)
-[![Known Vulnerabilities](https://snyk.io/test/github/cisagov/network-architecture-verification-and-validation/badge.svg)](https://snyk.io/test/github/cisagov/network-architecture-verification-and-validation)
 
 ## <a name="Installation"></a>Installation
 
