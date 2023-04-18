@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.10
 
 # Copyright 2023 Battelle Energy Alliance, LLC
 
