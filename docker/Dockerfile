@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:kinetic
 
 # Copyright 2023 Battelle Energy Alliance, LLC
 
