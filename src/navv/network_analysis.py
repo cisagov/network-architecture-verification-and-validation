@@ -4,9 +4,9 @@
 
 # python std library imports
 import argparse
+import json
 import os
 import pkg_resources
-import pickle
 import sys
 
 # package imports
@@ -67,7 +67,7 @@ def main(args):
     services, conn_states = spreadsheet_tools.get_package_data()
     timer_data = dict()
     segments = spreadsheet_tools.get_segments_data(wb["Segments"])
-    inventory = spreadsheet_tools.get_inventory_data(wb["Inventory"])
+    inventory_report = spreadsheet_tools.get_inventory_data(wb["Inventory Report"])
     zeek_logs_path = args.zeek_logs
 
     if args.pcap:
@@ -94,10 +94,11 @@ def main(args):
     rows, mac_dict = spreadsheet_tools.create_analysis_array(zeek_data, timer=timer_data)
 
     # get dns data for resolution
-    pkl_path = os.path.join(out_dir, "{}_dns_data.pkl".format(args.customer_name))
-    if os.path.exists(pkl_path):
-        with open(pkl_path, "rb") as pkl:
-            dns_filtered = pickle.load(pkl)
+    json_path = os.path.join(out_dir, f"{args.customer_name}_dns_data.json")
+
+    if os.path.exists(json_path):
+        with open(json_path, "rb") as json_file:
+            dns_filtered = json.load(json_file)
     else:
         dns_data = utilities.perform_zeekcut(
             fields=["query", "answers", "qtype", "rcode_name"],
@@ -112,10 +113,10 @@ def main(args):
         rows,
         services,
         conn_states,
-        inventory,
+        inventory_report,
         segments,
         dns_filtered,
-        pkl_path,
+        json_path,
         ext_IPs,
         unk_int_IPs,
         timer=timer_data,

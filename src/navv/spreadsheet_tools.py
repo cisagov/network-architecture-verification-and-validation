@@ -68,11 +68,13 @@ def get_workbook(file_name):
     else:
         wb = openpyxl.Workbook()
         inv_sheet = wb.active
-        inv_sheet.title = "Inventory"
+        inv_sheet.title = "Inventory Report"
         seg_sheet = wb.create_sheet("Segments")
 
         inv_sheet.cell(row=1, column=1, value="IP").style = HEADER_STYLE
         inv_sheet.cell(row=1, column=2, value="Name").style = HEADER_STYLE
+        inv_sheet.cell(row=1, column=2, value="Mac Address").style = HEADER_STYLE
+        inv_sheet.cell(row=1, column=2, value="Vendor").style = HEADER_STYLE
 
         seg_sheet.cell(row=1, column=1, value="Name").style = HEADER_STYLE
         seg_sheet.cell(row=1, column=2, value="Description").style = HEADER_STYLE
