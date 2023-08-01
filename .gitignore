@@ -19,3 +19,7 @@ __pycache__
 ## Test Data ##
 analysis
 test-data
+
+## Code Editors ##
+.idea
+.vscode
