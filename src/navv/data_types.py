@@ -2,47 +2,41 @@
 
 # Copyright 2023 Battelle Energy Alliance, LLC
 
+from dataclasses import dataclass, field
 import netaddr
 
 
+@dataclass
 class InventoryItem:
-    def __init__(self, ip=None, name=None, color=None):
-        self.ip = ip
-        self.name = name
-        self.color = color
+    ip: str
+    name: str
+    color: str
 
 
+@dataclass
 class Segment:
-    def __init__(self, name=None, description=None, network=None, color=None):
-        self.name = name
-        self.description = description
-        self.network = [str(ip) for ip in netaddr.IPNetwork(network)]
-        self.color = color
+    name: str
+    description: str
+    network: str
+    network_ips: list = field(init=False)
+    color: str
+
+    def __post_init__(self):
+        self.network_ips = [str(ip) for ip in netaddr.IPNetwork(self.network)]    
 
 
+@dataclass
 class AnalysisRowItem:
-    def __init__(
-        self,
-        count=None,
-        src_ip=None,
-        src_desc=None,
-        dest_ip=None,
-        dest_desc=None,
-        port=None,
-        service=None,
-        proto=None,
-        conn=None,
-    ):
-        self.count = count
-        self.src_ip = src_ip
-        self.src_desc = src_desc
-        self.dest_ip = dest_ip
-        self.dest_desc = dest_desc
-        self.port = port
-        self.service = service
-        self.proto = proto
-        self.conn = conn
-        self.notes = ""
+    count: int
+    src_ip: str
+    dest_ip: str
+    port: int
+    proto: str
+    conn: str
+    service: str = ""
+    dest_desc: str = ""
+    src_desc: str = ""
+    notes: str = ""
 
 
 icmp4_types = {
