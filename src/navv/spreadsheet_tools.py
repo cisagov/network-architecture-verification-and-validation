@@ -10,6 +10,7 @@ from copy import copy
 import pkg_resources
 import pickle
 import string
+import json
 
 import openpyxl
 import openpyxl.styles
@@ -166,7 +167,7 @@ def perform_analysis(
     inventory,
     segments,
     dns_data,
-    pkl_path,
+    json_path,
     ext_IPs,
     unk_int_IPs,
     **kwargs,
@@ -195,9 +196,9 @@ def perform_analysis(
         write_row_to_sheet(row, row_index, sheet)
     tab = Table(displayName="AnalysisTable", ref=f"A1:J{len(rows)+1}")
     sheet.add_table(tab)
-    # pickle the lookupdata for future use
-    with open(pkl_path, "wb") as pkl:
-        pickle.dump(dns_data, pkl)
+    # write lookup data to json file for future use
+    with open(json_path, "w+") as fp:
+        json.dump(dns_data, fp)
 
 
 def write_row_to_sheet(row, row_index, sheet):
