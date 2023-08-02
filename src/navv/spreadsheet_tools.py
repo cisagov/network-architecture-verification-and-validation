@@ -335,8 +335,15 @@ def write_inventory_report_sheet(
         ]
     )
 
+    seen = set()
+    unique_data = [
+        i
+        for i in data
+        if not ((prefix := i.split("\t")[0]) in seen or seen.add(prefix))
+    ]
+
     # write data
-    for row_index, row in enumerate(data, start=2):
+    for row_index, row in enumerate(unique_data, start=2):
         row = row.split("\t")
 
         # IP Address
