@@ -18,7 +18,6 @@ def get_mac_vendor(mac_address: str) -> str:
 
     return [
         vendor["vendorName"]
-        if mac_address.startswith(vendor["macPrefix"])
-        else "Not Found"
         for vendor in mac_vendors
+        if mac_address.startswith(vendor["macPrefix"])
     ][0]
