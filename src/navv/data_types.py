@@ -10,6 +10,8 @@ import netaddr
 class InventoryItem:
     ip: str
     name: str
+    mac_address: str
+    vendor: str
     color: str
 
 
@@ -22,7 +24,7 @@ class Segment:
     color: str
 
     def __post_init__(self):
-        self.network_ips = [str(ip) for ip in netaddr.IPNetwork(self.network)]    
+        self.network_ips = [str(ip) for ip in netaddr.IPNetwork(self.network)]
 
 
 @dataclass

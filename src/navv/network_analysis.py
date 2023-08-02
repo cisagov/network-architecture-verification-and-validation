@@ -11,15 +11,30 @@ import sys
 
 # package imports
 from navv import utilities
-from navv import spreadsheet_tools
-from navv import _version
+from navv.spreadsheet_tools import (
+    auto_adjust_width,
+    create_analysis_array,
+    get_workbook,
+    get_segments_data,
+    get_inventory_data,
+    get_package_data,
+    perform_analysis,
+    write_conn_states_sheet,
+    write_externals_sheet,
+    write_inventory_report_sheet,
+    write_macs_sheet,
+    write_stats_sheet,
+    write_unknown_internals_sheet,
+)
+
+from navv._version import __version__
 
 DATA_PATH = pkg_resources.resource_filename("navv", "data/")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description=f"NAVV: Network Architecture Verification and Validation {_version.__version__}"
+        description=f"NAVV: Network Architecture Verification and Validation {__version__}"
     )
     parser.add_argument("customer_name", help="Name of the customer")
     parser.add_argument(
@@ -54,7 +69,7 @@ def main(args):
     """Main function for performing zeek-cut commands and sorting the output"""
 
     if args.show_version:
-        print(f"{_version.__version__}")
+        print(f"{__version__}")
         sys.exit(0)
 
     out_dir = args.output_dir
@@ -62,12 +77,11 @@ def main(args):
         pass
     file_name = os.path.join(out_dir, args.customer_name + "_network_analysis.xlsx")
 
-    wb = spreadsheet_tools.get_workbook(file_name)
+    wb = get_workbook(file_name)
 
-    services, conn_states = spreadsheet_tools.get_package_data()
+    services, conn_states = get_package_data()
     timer_data = dict()
-    segments = spreadsheet_tools.get_segments_data(wb["Segments"])
-    inventory_report = spreadsheet_tools.get_inventory_data(wb["Inventory Report"])
+    segments = get_segments_data(wb["Segments"])
     zeek_logs_path = args.zeek_logs
 
     if args.pcap:
@@ -91,7 +105,7 @@ def main(args):
         .split("\n")[:-1]
     )
     # turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = spreadsheet_tools.create_analysis_array(zeek_data, timer=timer_data)
+    rows, mac_dict = create_analysis_array(zeek_data, timer=timer_data)
 
     # get dns data for resolution
     json_path = os.path.join(out_dir, f"{args.customer_name}_dns_data.json")
@@ -108,12 +122,11 @@ def main(args):
 
     ext_IPs = set()
     unk_int_IPs = set()
-    spreadsheet_tools.perform_analysis(
+    perform_analysis(
         wb,
         rows,
         services,
         conn_states,
-        inventory_report,
         segments,
         dns_filtered,
         json_path,
@@ -122,16 +135,23 @@ def main(args):
         timer=timer_data,
     )
 
-    spreadsheet_tools.write_macs_sheet(mac_dict, wb)
+    auto_adjust_width(wb["Analysis"])
 
-    spreadsheet_tools.write_externals_sheet(ext_IPs, wb)
+    write_inventory_report_sheet(
+        wb,
+        zeek_data,
+    )
 
-    spreadsheet_tools.write_unknown_internals_sheet(unk_int_IPs, wb)
+    write_macs_sheet(mac_dict, wb)
 
-    spreadsheet_tools.auto_adjust_width(wb["Analysis"])
+    write_externals_sheet(ext_IPs, wb)
+
+    write_unknown_internals_sheet(unk_int_IPs, wb)
 
     times = (
-        utilities.perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs_path, "conn.log"))
+        utilities.perform_zeekcut(
+            fields=["ts"], log_file=os.path.join(zeek_logs_path, "conn.log")
+        )
         .decode("utf-8")
         .split("\n")[:-1]
     )
@@ -139,14 +159,16 @@ def main(args):
     start = float(forward[0])
     end = float(forward[len(forward) - 1])
     cap_time = end - start
-    timer_data["Length of Capture time"] = "{} day(s) {} hour(s) {} minutes {} seconds".format(
+    timer_data[
+        "Length of Capture time"
+    ] = "{} day(s) {} hour(s) {} minutes {} seconds".format(
         int(cap_time / 86400),
         int(cap_time % 86400 / 3600),
         int(cap_time % 3600 / 60),
         int(cap_time % 60),
     )
-    spreadsheet_tools.write_stats_sheet(wb, timer_data)
-    spreadsheet_tools.write_conn_states_sheet(conn_states, wb)
+    write_stats_sheet(wb, timer_data)
+    write_conn_states_sheet(conn_states, wb)
 
     wb.save(file_name)
 

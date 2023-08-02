@@ -20,8 +20,10 @@ from tqdm import tqdm
 
 from navv import data_types
 from navv import utilities
+from navv.utils.tools import get_mac_vendor
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
+
 COL_NAMES = [
     "Count",
     "Src_IP",
@@ -68,14 +70,7 @@ def get_workbook(file_name):
         wb = openpyxl.load_workbook(file_name)
     else:
         wb = openpyxl.Workbook()
-        inv_sheet = wb.active
-        inv_sheet.title = "Inventory Report"
         seg_sheet = wb.create_sheet("Segments")
-
-        inv_sheet.cell(row=1, column=1, value="IP").style = HEADER_STYLE
-        inv_sheet.cell(row=1, column=2, value="Name").style = HEADER_STYLE
-        inv_sheet.cell(row=1, column=2, value="Mac Address").style = HEADER_STYLE
-        inv_sheet.cell(row=1, column=2, value="Vendor").style = HEADER_STYLE
 
         seg_sheet.cell(row=1, column=1, value="Name").style = HEADER_STYLE
         seg_sheet.cell(row=1, column=2, value="Description").style = HEADER_STYLE
@@ -131,7 +126,10 @@ def create_analysis_array(sort_input, **kwargs):
     mac_dict = dict()
     # sort by count and source IP
     counted = sorted(
-        list(str(count) + "\t" + item for item, count in sorted(Counter(sort_input).items(), key=lambda x: x[0])),
+        list(
+            str(count) + "\t" + item
+            for item, count in sorted(Counter(sort_input).items(), key=lambda x: x[0])
+        ),
         key=lambda x: int(x.split("\t")[0]),
         reverse=True,
     )
@@ -164,7 +162,6 @@ def perform_analysis(
     rows,
     services,
     conn_states,
-    inventory,
     segments,
     dns_data,
     json_path,
@@ -189,8 +186,8 @@ def perform_analysis(
     )
     print("Performing analysis(including lookups). This may take a while:")
     for row_index, row in enumerate(tqdm(rows), start=2):
-        row.src_desc = handle_ip(row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs)
-        row.dest_desc = handle_ip(row.dest_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs)
+        row.src_desc = handle_ip(row.src_ip, dns_data, segments, ext_IPs, unk_int_IPs)
+        row.dest_desc = handle_ip(row.dest_ip, dns_data, segments, ext_IPs, unk_int_IPs)
         handle_service(row, services)
         row.conn = (row.conn, conn_states[row.conn])
         write_row_to_sheet(row, row_index, sheet)
@@ -256,7 +253,7 @@ def handle_service(row, services):
             row.service = ("unknown service", UNKNOWN_EXTERNAL_CELL_COLOR)
 
 
-def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
+def handle_ip(ip_to_check, dns_data, segments, ext_IPs, unk_int_IPs):
     """Function take IP Address and uses collected dns_data, inventory, and segment information to give IP Addresses in analysis context.
 
     Priority flow:
@@ -280,7 +277,9 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             "IPv4 All Subnet Broadcast",
             IPV6_CELL_COLOR,
         )
-    elif netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
+    elif (
+        netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast()
+    ):
         desc_to_change = (
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
@@ -291,16 +290,12 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
                 continue
             if ip_to_check in dns_data:
                 desc_to_change = (dns_data[ip_to_check], segment.color)
-            if ip_to_check in inventory:
-                desc_to_change = (inventory[ip_to_check].name, segment.color)
             else:
                 desc_to_change = (
                     f"Unknown device in {segment.name} network",
                     segment.color,
                 )
                 unk_int_IPs.add(ip_to_check)
-    elif ip_to_check in inventory:
-        desc_to_change = (inventory[ip_to_check].name, inventory[ip_to_check].color)
     elif netaddr.IPAddress(ip_to_check).is_private():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
@@ -321,6 +316,40 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
                 dns_data[ip_to_check] = resolution
         desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR)
     return desc_to_change
+
+
+def write_inventory_report_sheet(
+    wb,
+    data,
+):
+    """Create the Inventory Report sheet."""
+    sheet = make_sheet(wb, "Inventory Report", idx=0)
+
+    # write header
+    sheet.append(
+        [
+            "IP",
+            "Name",
+            "MAC Address",
+            "Vendor",
+        ]
+    )
+
+    # write data
+    for row_index, row in enumerate(data, start=2):
+        row = row.split("\t")
+
+        # IP Address
+        sheet.cell(row=row_index, column=1, value=row[0])
+
+        # Name
+        sheet.cell(row=row_index, column=2, value="Name")
+
+        # MAC Address
+        sheet.cell(row=row_index, column=3, value=row[5])
+
+        # Vendor
+        sheet.cell(row=row_index, column=4, value=get_mac_vendor(row[5]))
 
 
 def write_conn_states_sheet(conn_states, wb):
@@ -396,7 +425,10 @@ def write_unknown_internals_sheet(IPs, wb):
 
 def write_stats_sheet(wb, stats):
     stats_sheet = make_sheet(wb, "Stats", idx=7)
-    stats_sheet.append(["Length of Capture time"] + [column for column in stats if column != "Length of Capture time"])
+    stats_sheet.append(
+        ["Length of Capture time"]
+        + [column for column in stats if column != "Length of Capture time"]
+    )
     stats_sheet["A2"] = stats.pop("Length of Capture time")
     for col_index, stat in enumerate(stats, 1):
         stats_sheet[f"{string.ascii_uppercase[col_index]}2"].value = stats[stat]
@@ -415,4 +447,6 @@ def auto_adjust_width(sheet):
     for col in sheet.columns:
         vals = (len("{}".format(c.value)) for c in col if c.value is not None)
         max_width = max(vals) * factor
-        sheet.column_dimensions[col[0].column_letter].width = max_width if max_width < 20 else max_width * 1.2 / 1.7
+        sheet.column_dimensions[col[0].column_letter].width = (
+            max_width if max_width < 20 else max_width * 1.2 / 1.7
+        )
