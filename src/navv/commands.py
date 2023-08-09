@@ -10,7 +10,21 @@ import click
 # cisagov Libraries
 from navv.gui import app
 from navv.message_handler import success_msg, warning_msg
-from navv import spreadsheet_tools
+from navv.spreadsheet_tools import (
+    auto_adjust_width,
+    create_analysis_array,
+    get_inventory_data,
+    get_package_data,
+    get_segments_data,
+    get_workbook,
+    perform_analysis,
+    write_conn_states_sheet,
+    write_externals_sheet,
+    write_inventory_report_sheet,
+    write_macs_sheet,
+    write_stats_sheet,
+    write_unknown_internals_sheet,
+)
 from navv.utilities import pushd, run_zeek, perform_zeekcut, trim_dns_data
 
 
@@ -43,12 +57,12 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         pass
     file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
 
-    wb = spreadsheet_tools.get_workbook(file_name)
+    wb = get_workbook(file_name)
 
-    services, conn_states = spreadsheet_tools.get_package_data()
+    services, conn_states = get_package_data()
     timer_data = dict()
-    segments = spreadsheet_tools.get_segments_data(wb["Segments"])
-    inventory = spreadsheet_tools.get_inventory_data(wb["Inventory Input"])
+    segments = get_segments_data(wb["Segments"])
+    inventory = get_inventory_data(wb["Inventory Input"])
 
     if pcap:
         run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
@@ -72,9 +86,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     )
 
     # turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = spreadsheet_tools.create_analysis_array(
-        zeek_data, timer=timer_data
-    )
+    rows, mac_dict = create_analysis_array(zeek_data, timer=timer_data)
 
     # get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
@@ -91,7 +103,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
 
     ext_IPs = set()
     unk_int_IPs = set()
-    spreadsheet_tools.perform_analysis(
+    perform_analysis(
         wb,
         rows,
         services,
@@ -105,15 +117,15 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         timer=timer_data,
     )
 
-    spreadsheet_tools.write_inventory_report_sheet(mac_dict, wb)
+    write_inventory_report_sheet(mac_dict, wb)
 
-    spreadsheet_tools.write_macs_sheet(mac_dict, wb)
+    write_macs_sheet(mac_dict, wb)
 
-    spreadsheet_tools.write_externals_sheet(ext_IPs, wb)
+    write_externals_sheet(ext_IPs, wb)
 
-    spreadsheet_tools.write_unknown_internals_sheet(unk_int_IPs, wb)
+    write_unknown_internals_sheet(unk_int_IPs, wb)
 
-    spreadsheet_tools.auto_adjust_width(wb["Analysis"])
+    auto_adjust_width(wb["Analysis"])
 
     times = (
         perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs, "conn.log"))
@@ -132,8 +144,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         int(cap_time % 3600 / 60),
         int(cap_time % 60),
     )
-    spreadsheet_tools.write_stats_sheet(wb, timer_data)
-    spreadsheet_tools.write_conn_states_sheet(conn_states, wb)
+    write_stats_sheet(wb, timer_data)
+    write_conn_states_sheet(conn_states, wb)
 
     wb.save(file_name)
 
