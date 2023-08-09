@@ -20,6 +20,8 @@ from tqdm import tqdm
 
 from navv import data_types
 from navv import utilities
+from navv.message_handler import info_msg
+
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
 COL_NAMES = [
@@ -188,7 +190,7 @@ def perform_analysis(
             "Notes",
         ]
     )
-    print("Performing analysis(including lookups). This may take a while:")
+    info_msg("Performing analysis(including lookups). This may take a while:")
     for row_index, row in enumerate(tqdm(rows), start=2):
         row.src_desc = handle_ip(
             row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs

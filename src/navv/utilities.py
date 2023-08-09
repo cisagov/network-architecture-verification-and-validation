@@ -5,15 +5,14 @@
 import os
 import contextlib
 import json
-import logging
 from subprocess import Popen, PIPE, STDOUT, check_call
 import time
 
 from netaddr import EUI, core as netaddr_core
 from tqdm import tqdm
 
+from navv.message_handler import info_msg, error_msg
 
-logger = logging.getLogger(__name__)
 
 MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
 
@@ -40,7 +39,7 @@ def timeit(method):
             kw["timer"][
                 method.__name__
             ] = f"{int(td/86400)} day(s) {int(td%86400/3600)} hour(s) {int(td%3600/60)} minutes {int(td%60)} seconds"
-        logger.info(time_elapsed)
+        info_msg(time_elapsed)
         return result
 
     return timed
@@ -51,7 +50,7 @@ def run_zeek(pcap_path, zeek_logs_path, **kwargs):
     with pushd(zeek_logs_path):
         # can we add Site::local_nets to the zeek call here?
         err = check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
-        logger.error(f"Zeek returned with code: {err}")
+        error_msg(f"Zeek returned with code: {err}")
 
 
 def perform_zeekcut(fields, log_file):
@@ -71,7 +70,7 @@ def trim_dns_data(data):
     """Find entries in dns log that contain no_error and return a dict of {ip: hostname,}"""
     ret_data = {}
     # log_list = log_to_list(data)
-    logger.info("Trimming DNS.log data:")
+    info_msg("Trimming DNS.log data:")
     for row in tqdm(data.decode("utf-8 ").split("\n")[:-1]):
         # line_data = list(stream(row, '\t'))
         line_data = row.split("\t")
@@ -88,7 +87,7 @@ def get_mac_vendor(mac_address: str) -> list:
     try:
         EUI(mac_address)
     except netaddr_core.AddrFormatError:
-        logger.error(f"Invalid MAC address: {mac_address}")
+        error_msg(f"Invalid MAC address: {mac_address}")
         return [f"Bad MAC address {mac_address}"]
 
     with open(MAC_VENDORS_JSON_FILE) as f:
@@ -101,7 +100,7 @@ def get_mac_vendor(mac_address: str) -> list:
     ]
 
     if not vendor:
-        logger.error(f"Unknown vendor for MAC address: {mac_address}")
+        error_msg(f"Unknown vendor for MAC address: {mac_address}")
         return [f"Unknown vendor for MAC address {mac_address}"]
 
     return vendor
