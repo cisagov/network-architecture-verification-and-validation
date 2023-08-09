@@ -124,6 +124,8 @@ def main(args):
         timer=timer_data,
     )
 
+    spreadsheet_tools.write_inventory_report_sheet(mac_dict, wb)
+
     spreadsheet_tools.write_macs_sheet(mac_dict, wb)
 
     spreadsheet_tools.write_externals_sheet(ext_IPs, wb)
