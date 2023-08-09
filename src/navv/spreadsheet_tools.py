@@ -355,7 +355,7 @@ def write_inventory_report_sheet(mac_dict, wb):
             eui = netaddr.EUI(mac)
             oui = eui.oui
             orgs = [oui.registration(i).org for i in range(oui.reg_count)]
-            breakpoint()
+
         except netaddr.core.NotRegisteredError:
             orgs = ["Not a registered manufacturer"]
         except netaddr.core.AddrFormatError:
