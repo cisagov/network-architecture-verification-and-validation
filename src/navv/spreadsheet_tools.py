@@ -346,24 +346,15 @@ def write_conn_states_sheet(conn_states, wb):
 
 
 def write_inventory_report_sheet(mac_dict, wb):
-    """Fill spreadsheet with MAC address -> IP address translation with manufacturer information"""
-    macs_sheet = make_sheet(wb, "Inventory Report", idx=4)
-    macs_sheet.append(["MAC", "Vendor", "IPs"])
+    """Get Mac Addresses with their associated IP addresses and manufacturer."""
+    ir_sheet = make_sheet(wb, "Inventory Report", idx=4)
+    ir_sheet.append(["MAC", "Vendor", "IPs"])
     for row_index, mac in enumerate(mac_dict, start=2):
-        macs_sheet[f"A{row_index}"].value = mac
-        try:
-            eui = netaddr.EUI(mac)
-            oui = eui.oui
-            orgs = [oui.registration(i).org for i in range(oui.reg_count)]
+        ir_sheet[f"A{row_index}"].value = mac
+        orgs = utilities.get_mac_vendor(mac)
 
-        except netaddr.core.NotRegisteredError:
-            orgs = ["Not a registered manufacturer"]
-        except netaddr.core.AddrFormatError:
-            orgs = [f"Bad MAC address {mac}"]
-        except Exception:
-            orgs = ["Unspecified MAC error"]
-        macs_sheet[f"B{row_index}"].value = "\n".join(orgs)
-        ip_list_cell = macs_sheet[f"C{row_index}"]
+        ir_sheet[f"B{row_index}"].value = "\n".join(orgs)
+        ip_list_cell = ir_sheet[f"C{row_index}"]
         ip_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
         num_ips = len(mac_dict[mac])
         if num_ips > 10:
@@ -372,12 +363,12 @@ def write_inventory_report_sheet(mac_dict, wb):
             ip_list_cell.value = "\n".join(display_list)
         else:
             ip_list_cell.value = "\n".join(mac_dict[mac][:10])
-        macs_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
+        ir_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
         if row_index % 2 == 0:
-            for cell in macs_sheet[f"{row_index}:{row_index}"]:
+            for cell in ir_sheet[f"{row_index}:{row_index}"]:
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
-    auto_adjust_width(macs_sheet)
-    macs_sheet.column_dimensions["C"].width = 39 * 1.2
+    auto_adjust_width(ir_sheet)
+    ir_sheet.column_dimensions["C"].width = 39 * 1.2
 
 
 def write_macs_sheet(mac_dict, wb):
