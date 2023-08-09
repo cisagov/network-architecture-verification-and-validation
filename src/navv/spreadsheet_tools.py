@@ -7,6 +7,7 @@ import itertools
 from collections import Counter
 import socket
 from copy import copy
+import json
 import pkg_resources
 import pickle
 import string
@@ -19,6 +20,8 @@ from tqdm import tqdm
 
 from navv import data_types
 from navv import utilities
+from navv.message_handler import info_msg
+
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
 COL_NAMES = [
@@ -68,7 +71,7 @@ def get_workbook(file_name):
     else:
         wb = openpyxl.Workbook()
         inv_sheet = wb.active
-        inv_sheet.title = "Inventory"
+        inv_sheet.title = "Inventory Input"
         seg_sheet = wb.create_sheet("Segments")
 
         inv_sheet.cell(row=1, column=1, value="IP").style = HEADER_STYLE
@@ -124,11 +127,14 @@ def get_package_data():
 
 @utilities.timeit
 def create_analysis_array(sort_input, **kwargs):
-    arr = list()
-    mac_dict = dict()
+    arr = []
+    mac_dict = {}
     # sort by count and source IP
     counted = sorted(
-        list(str(count) + "\t" + item for item, count in sorted(Counter(sort_input).items(), key=lambda x: x[0])),
+        list(
+            str(count) + "\t" + item
+            for item, count in sorted(Counter(sort_input).items(), key=lambda x: x[0])
+        ),
         key=lambda x: int(x.split("\t")[0]),
         reverse=True,
     )
@@ -164,7 +170,7 @@ def perform_analysis(
     inventory,
     segments,
     dns_data,
-    pkl_path,
+    json_path,
     ext_IPs,
     unk_int_IPs,
     **kwargs,
@@ -184,18 +190,22 @@ def perform_analysis(
             "Notes",
         ]
     )
-    print("Performing analysis(including lookups). This may take a while:")
+    info_msg("Performing analysis(including lookups). This may take a while:")
     for row_index, row in enumerate(tqdm(rows), start=2):
-        row.src_desc = handle_ip(row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs)
-        row.dest_desc = handle_ip(row.dest_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs)
+        row.src_desc = handle_ip(
+            row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs
+        )
+        row.dest_desc = handle_ip(
+            row.dest_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs
+        )
         handle_service(row, services)
         row.conn = (row.conn, conn_states[row.conn])
         write_row_to_sheet(row, row_index, sheet)
     tab = Table(displayName="AnalysisTable", ref=f"A1:J{len(rows)+1}")
     sheet.add_table(tab)
-    # pickle the lookupdata for future use
-    with open(pkl_path, "wb") as pkl:
-        pickle.dump(dns_data, pkl)
+    # write lookup data to json file for future use
+    with open(json_path, "w+") as fp:
+        json.dump(dns_data, fp)
 
 
 def write_row_to_sheet(row, row_index, sheet):
@@ -277,7 +287,9 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             "IPv4 All Subnet Broadcast",
             IPV6_CELL_COLOR,
         )
-    elif netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast():
+    elif (
+        netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast()
+    ):
         desc_to_change = (
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
@@ -333,6 +345,32 @@ def write_conn_states_sheet(conn_states, wb):
         desc_cell.fill = conn_states[conn_state][0]
         desc_cell.font = conn_states[conn_state][1]
     auto_adjust_width(new_ws)
+
+
+def write_inventory_report_sheet(mac_dict, wb):
+    """Get Mac Addresses with their associated IP addresses and manufacturer."""
+    ir_sheet = make_sheet(wb, "Inventory Report", idx=4)
+    ir_sheet.append(["MAC", "Vendor", "IPs"])
+    for row_index, mac in enumerate(mac_dict, start=2):
+        ir_sheet[f"A{row_index}"].value = mac
+        orgs = utilities.get_mac_vendor(mac)
+
+        ir_sheet[f"B{row_index}"].value = "\n".join(orgs)
+        ip_list_cell = ir_sheet[f"C{row_index}"]
+        ip_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+        num_ips = len(mac_dict[mac])
+        if num_ips > 10:
+            display_list = mac_dict[mac][:10]
+            display_list.append(f"Displaying 10 IPs of {num_ips}")
+            ip_list_cell.value = "\n".join(display_list)
+        else:
+            ip_list_cell.value = "\n".join(mac_dict[mac][:10])
+        ir_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
+        if row_index % 2 == 0:
+            for cell in ir_sheet[f"{row_index}:{row_index}"]:
+                cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
+    auto_adjust_width(ir_sheet)
+    ir_sheet.column_dimensions["C"].width = 39 * 1.2
 
 
 def write_macs_sheet(mac_dict, wb):
@@ -393,7 +431,10 @@ def write_unknown_internals_sheet(IPs, wb):
 
 def write_stats_sheet(wb, stats):
     stats_sheet = make_sheet(wb, "Stats", idx=7)
-    stats_sheet.append(["Length of Capture time"] + [column for column in stats if column != "Length of Capture time"])
+    stats_sheet.append(
+        ["Length of Capture time"]
+        + [column for column in stats if column != "Length of Capture time"]
+    )
     stats_sheet["A2"] = stats.pop("Length of Capture time")
     for col_index, stat in enumerate(stats, 1):
         stats_sheet[f"{string.ascii_uppercase[col_index]}2"].value = stats[stat]
@@ -412,4 +453,6 @@ def auto_adjust_width(sheet):
     for col in sheet.columns:
         vals = (len("{}".format(c.value)) for c in col if c.value is not None)
         max_width = max(vals) * factor
-        sheet.column_dimensions[col[0].column_letter].width = max_width if max_width < 20 else max_width * 1.2 / 1.7
+        sheet.column_dimensions[col[0].column_letter].width = (
+            max_width if max_width < 20 else max_width * 1.2 / 1.7
+        )

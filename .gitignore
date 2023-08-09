@@ -1,6 +1,12 @@
 *.pkl
 *.xlsx
 
+## Environment variables ##
+.env 
+
+## MacOS ##
+.DS_Store
+
 ## Python ##
 __pycache__
 .coverage
@@ -8,3 +14,12 @@ __pycache__
 .pytest_cache
 .python-version
 *.egg-info
+.venv
+
+## Test Data ##
+analysis
+test-data
+
+## Code Editors ##
+.idea
+.vscode
