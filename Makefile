@@ -16,7 +16,7 @@ install:
 
 # target: generate - Generate analysis from pcap
 generate:
-	navv generate -o analysis -p test-data/test_data_PCII/water205.pcap -z test-data/logs test-customer
+	navv generate -o analysis -p test-data/test_data.pcap -z test-data/logs test-customer
 
 # target: load-metadata - Load metadata
 load-metadata:
