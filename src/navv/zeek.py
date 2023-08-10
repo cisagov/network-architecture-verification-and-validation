@@ -8,8 +8,10 @@ from navv.utilities import pushd, timeit
 def run_zeek(pcap_path, zeek_logs_path, **kwargs):
     with pushd(zeek_logs_path):
         # can we add Site::local_nets to the zeek call here?
-        err = check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
-        error_msg(f"Zeek returned with code: {err}")
+        try:
+            check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
+        except Exception as e:
+            error_msg(e)
 
 
 def perform_zeekcut(fields, log_file):
