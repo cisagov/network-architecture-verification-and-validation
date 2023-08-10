@@ -25,7 +25,8 @@ from navv.spreadsheet_tools import (
     write_stats_sheet,
     write_unknown_internals_sheet,
 )
-from navv.utilities import pushd, run_zeek, perform_zeekcut, trim_dns_data
+from navv.zeek import run_zeek, perform_zeekcut
+from navv.utilities import pushd, trim_dns_data
 
 
 @click.command("generate")
