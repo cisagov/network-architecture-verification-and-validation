@@ -58,7 +58,7 @@ def trim_dns_data(data):
     return ret_data
 
 
-def get_mac_vendor(mac_address: str) -> list:
+def get_mac_vendor(mac_address: str) -> str:
     """Return the vendor of the MAC address."""
     mac_address = mac_address.upper()
 
@@ -66,19 +66,22 @@ def get_mac_vendor(mac_address: str) -> list:
         EUI(mac_address)
     except netaddr_core.AddrFormatError:
         error_msg(f"Invalid MAC address: {mac_address}")
-        return [f"Bad MAC address {mac_address}"]
+        return f"Bad MAC address {mac_address}"
 
     with open(MAC_VENDORS_JSON_FILE) as f:
         mac_vendors = json.load(f)
 
-    vendor = [
-        vendor["vendorName"]
-        for vendor in mac_vendors
-        if mac_address.startswith(vendor["macPrefix"])
-    ]
+    try:
+        vendor = [
+            vendor["vendorName"]
+            for vendor in mac_vendors
+            if mac_address.startswith(vendor["macPrefix"])
+        ][0]
+    except IndexError:
+        vendor = ""
 
     if not vendor:
         error_msg(f"Unknown vendor for MAC address: {mac_address}")
-        return [f"Unknown vendor for MAC address {mac_address}"]
+        return "Unknown Vendor"
 
     return vendor
