@@ -21,7 +21,8 @@ def is_ipv6_address(ip_address: str) -> bool:
 
 
 def is_mac_address(mac_address: str) -> bool:
-    if re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", x.lower())
+    if re.match(
+        "[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", mac_address.lower()
+    ):
         return True
     return False
-    
