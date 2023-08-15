@@ -6,6 +6,7 @@ import webbrowser
 
 # Third-Party Libraries
 import click
+from navv.bll import get_inventory_report_df, get_zeek_data, get_zeek_df
 
 # cisagov Libraries
 from navv.gui import app
@@ -69,27 +70,18 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
     else:
         timer_data["run_zeek"] = "NOT RAN"
-    zeek_data = (
-        perform_zeekcut(
-            fields=[
-                "id.orig_h",
-                "id.resp_h",
-                "id.resp_p",
-                "proto",
-                "conn_state",
-                "orig_l2_addr",
-                "resp_l2_addr",
-            ],
-            log_file=os.path.join(zeek_logs, "conn.log"),
-        )
-        .decode("utf-8")
-        .split("\n")[:-1]
-    )
 
-    # turn zeekcut data into rows for spreadsheet
+    # Get zeek data
+    zeek_data = get_zeek_data(zeek_logs)
+    zeek_df = get_zeek_df(zeek_data)
+
+    # Get inventory report dataframe
+    inventory_df = get_inventory_report_df(zeek_df)
+
+    # Turn zeekcut data into rows for spreadsheet
     rows, mac_dict = create_analysis_array(zeek_data, timer=timer_data)
 
-    # get dns data for resolution
+    # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
 
     if os.path.exists(json_path):
@@ -118,7 +110,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         timer=timer_data,
     )
 
-    write_inventory_report_sheet(mac_dict, wb)
+    write_inventory_report_sheet(inventory_df, wb)
 
     write_macs_sheet(mac_dict, wb)
 

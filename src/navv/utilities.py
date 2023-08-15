@@ -7,10 +7,10 @@ import contextlib
 import json
 import time
 
-from netaddr import EUI, core as netaddr_core
 from tqdm import tqdm
 
 from navv.message_handler import info_msg, error_msg
+from navv.validators import is_mac_address
 
 
 MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
@@ -62,9 +62,7 @@ def get_mac_vendor(mac_address: str) -> str:
     """Return the vendor of the MAC address."""
     mac_address = mac_address.upper()
 
-    try:
-        EUI(mac_address)
-    except netaddr_core.AddrFormatError:
+    if not is_mac_address(mac_address):
         error_msg(f"Invalid MAC address: {mac_address}")
         return f"Bad MAC address {mac_address}"
 
@@ -78,9 +76,6 @@ def get_mac_vendor(mac_address: str) -> str:
             if mac_address.startswith(vendor["macPrefix"])
         ][0]
     except IndexError:
-        vendor = ""
-
-    if not vendor:
         error_msg(f"Unknown vendor for MAC address: {mac_address}")
         return "Unknown Vendor"
 
