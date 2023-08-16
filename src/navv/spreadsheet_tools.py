@@ -347,27 +347,52 @@ def write_conn_states_sheet(conn_states, wb):
     auto_adjust_width(new_ws)
 
 
-def write_inventory_report_sheet(mac_dict, wb):
+def write_inventory_report_sheet(inventory_df, wb):
     """Get Mac Addresses with their associated IP addresses and manufacturer."""
     ir_sheet = make_sheet(wb, "Inventory Report", idx=4)
-    ir_sheet.append(["MAC", "Vendor", "IPs"])
-    for row_index, mac in enumerate(mac_dict, start=2):
-        ir_sheet[f"A{row_index}"].value = mac
-        orgs = utilities.get_mac_vendor(mac)
+    ir_sheet.append(["MAC", "Vendor", "IPv4", "IPv6", "Port and Proto"])
 
-        ir_sheet[f"B{row_index}"].value = "\n".join(orgs)
-        ip_list_cell = ir_sheet[f"C{row_index}"]
-        ip_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
-        num_ips = len(mac_dict[mac])
-        if num_ips > 10:
-            display_list = mac_dict[mac][:10]
-            display_list.append(f"Displaying 10 IPs of {num_ips}")
-            ip_list_cell.value = "\n".join(display_list)
-        else:
-            ip_list_cell.value = "\n".join(mac_dict[mac][:10])
-        ir_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
-        if row_index % 2 == 0:
-            for cell in ir_sheet[f"{row_index}:{row_index}"]:
+    inventory_data = inventory_df.to_dict(orient="records")
+    for index, row in enumerate(inventory_data, start=2):
+        # Mac Address column
+        ir_sheet[f"A{index}"].value = row["mac"]
+
+        # Vendor column
+        ir_sheet[f"B{index}"].value = row["vendor"]
+
+        # IPv4 Address column
+        ipv4_list_cell = ir_sheet[f"C{index}"]
+        ipv4_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+        ipv4 = ""
+        if row["ipv4"]:
+            ipv4 = ", ".join(each for each in row["ipv4"] if each)
+        ipv4_list_cell.value = ipv4
+
+        # IPv6 Address column
+        ipv6_list_cell = ir_sheet[f"D{index}"]
+        ipv6_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+        ipv6 = ""
+        if row["ipv6"]:
+            ipv6 = ", ".join(each for each in row["ipv6"] if each)
+        ipv6_list_cell.value = ipv6
+
+        # Port and Protocol column
+        pnp_sheet = ir_sheet[f"E{index}"]
+        pnp_sheet.alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+        port_and_proto = ""
+        if row["port_and_proto"]:
+            port_and_proto = ", ".join(
+                list(set(each for each in row["port_and_proto"] if each))[:10]
+            )
+
+        pnp_sheet.value = port_and_proto
+
+        # Add styling to every other row
+        if index % 2 == 0:
+            for cell in ir_sheet[f"{index}:{index}"]:
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
     auto_adjust_width(ir_sheet)
     ir_sheet.column_dimensions["C"].width = 39 * 1.2
