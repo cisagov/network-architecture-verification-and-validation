@@ -325,7 +325,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
 
 
 def write_conn_states_sheet(conn_states, wb):
-    new_ws = make_sheet(wb, "Conn_States", idx=8)
+    new_ws = make_sheet(wb, "Conn States", idx=8)
     new_ws.append(["State", "Description"])
     for row_num, conn_state in enumerate(conn_states, start=2):
         state_cell = new_ws[f"A{row_num}"]
@@ -402,7 +402,7 @@ def write_externals_sheet(IPs, wb):
 
 
 def write_unknown_internals_sheet(IPs, wb):
-    int_sheet = make_sheet(wb, "Unkown_Internals", idx=6)
+    int_sheet = make_sheet(wb, "Unknown Internals", idx=6)
     int_sheet.append(["Unknown Internal IP"])
     for row_index, IP in enumerate(sorted(IPs), start=2):
         cell = int_sheet[f"A{row_index}"]
