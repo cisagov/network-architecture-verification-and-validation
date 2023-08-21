@@ -128,7 +128,6 @@ def get_package_data():
 @utilities.timeit
 def create_analysis_array(sort_input, **kwargs):
     arr = []
-    mac_dict = {}
     # sort by count and source IP
     counted = sorted(
         list(
@@ -150,15 +149,8 @@ def create_analysis_array(sort_input, **kwargs):
                 conn=cells[5],
             )
         )
-        if cells[6] is not None and cells[6] != "":
-            if netaddr.IPAddress(cells[1]).is_private():
-                if cells[6] not in mac_dict:
-                    mac_dict[cells[6]] = [cells[1]]
-                else:
-                    if cells[1] not in mac_dict[cells[6]]:
-                        mac_dict[cells[6]].append(cells[1])
 
-    return arr, mac_dict
+    return arr
 
 
 @utilities.timeit
@@ -396,40 +388,6 @@ def write_inventory_report_sheet(inventory_df, wb):
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
     auto_adjust_width(ir_sheet)
     ir_sheet.column_dimensions["C"].width = 39 * 1.2
-
-
-def write_macs_sheet(mac_dict, wb):
-    """Fill spreadsheet with MAC address -> IP address translation with manufacturer information"""
-    macs_sheet = make_sheet(wb, "MACs", idx=4)
-    macs_sheet.append(["MAC", "Manufacturer", "IPs"])
-    for row_index, mac in enumerate(mac_dict, start=2):
-        macs_sheet[f"A{row_index}"].value = mac
-        try:
-            eui = netaddr.EUI(mac)
-            oui = eui.oui
-            orgs = [oui.registration(i).org for i in range(oui.reg_count)]
-        except netaddr.core.NotRegisteredError:
-            orgs = ["Not a registered manufacturer"]
-        except netaddr.core.AddrFormatError:
-            orgs = [f"Bad MAC address {mac}"]
-        except Exception:
-            orgs = ["Unspecified MAC error"]
-        macs_sheet[f"B{row_index}"].value = "\n".join(orgs)
-        ip_list_cell = macs_sheet[f"C{row_index}"]
-        ip_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
-        num_ips = len(mac_dict[mac])
-        if num_ips > 10:
-            display_list = mac_dict[mac][:10]
-            display_list.append(f"Displaying 10 IPs of {num_ips}")
-            ip_list_cell.value = "\n".join(display_list)
-        else:
-            ip_list_cell.value = "\n".join(mac_dict[mac][:10])
-        macs_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
-        if row_index % 2 == 0:
-            for cell in macs_sheet[f"{row_index}:{row_index}"]:
-                cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
-    auto_adjust_width(macs_sheet)
-    macs_sheet.column_dimensions["C"].width = 39 * 1.2
 
 
 def write_externals_sheet(IPs, wb):

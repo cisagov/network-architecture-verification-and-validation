@@ -22,7 +22,6 @@ from navv.spreadsheet_tools import (
     write_conn_states_sheet,
     write_externals_sheet,
     write_inventory_report_sheet,
-    write_macs_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
 )
@@ -79,7 +78,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     inventory_df = get_inventory_report_df(zeek_df)
 
     # Turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = create_analysis_array(zeek_data, timer=timer_data)
+    rows = create_analysis_array(zeek_data, timer=timer_data)
 
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
@@ -111,8 +110,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     )
 
     write_inventory_report_sheet(inventory_df, wb)
-
-    write_macs_sheet(mac_dict, wb)
 
     write_externals_sheet(ext_IPs, wb)
 
