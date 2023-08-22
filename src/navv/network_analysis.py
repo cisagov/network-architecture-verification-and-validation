@@ -11,7 +11,6 @@ import click
 # package imports
 from navv.commands import generate, launch
 from navv.message_handler import info_msg
-from navv import utilities
 from navv._version import __version__
 
 
@@ -31,7 +30,6 @@ def cli(ctx):
     pass
 
 
-@utilities.timeit
 def main():
     """Main function for performing zeek-cut commands and sorting the output"""
 

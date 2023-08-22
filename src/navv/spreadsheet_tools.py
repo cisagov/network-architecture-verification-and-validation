@@ -19,8 +19,8 @@ import netaddr
 from tqdm import tqdm
 
 from navv import data_types
-from navv import utilities
-from navv.message_handler import info_msg
+from navv.utilities import timeit
+from navv.message_handler import warning_msg
 
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
@@ -83,7 +83,7 @@ def get_workbook(file_name):
     return wb
 
 
-@utilities.timeit
+@timeit
 def get_inventory_data(ws, **kwargs):
     inventory = dict()
     for row in itertools.islice(ws.iter_rows(), 1, None):
@@ -97,7 +97,7 @@ def get_inventory_data(ws, **kwargs):
     return inventory
 
 
-@utilities.timeit
+@timeit
 def get_segments_data(ws):
     segments = list()
     for row in itertools.islice(ws.iter_rows(), 1, None):
@@ -125,7 +125,7 @@ def get_package_data():
     return services, conn_states
 
 
-@utilities.timeit
+@timeit
 def create_analysis_array(sort_input, **kwargs):
     arr = []
     # sort by count and source IP
@@ -153,7 +153,7 @@ def create_analysis_array(sort_input, **kwargs):
     return arr
 
 
-@utilities.timeit
+@timeit
 def perform_analysis(
     wb,
     rows,
@@ -182,7 +182,7 @@ def perform_analysis(
             "Notes",
         ]
     )
-    info_msg("Performing analysis(including lookups). This may take a while:")
+    warning_msg("this may take awhile...")
     for row_index, row in enumerate(tqdm(rows), start=2):
         row.src_desc = handle_ip(
             row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs

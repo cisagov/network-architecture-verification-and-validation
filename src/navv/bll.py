@@ -3,7 +3,7 @@ from ipaddress import IPv4Address, IPv6Address
 import pandas as pd
 
 from navv.zeek import perform_zeekcut
-from navv.utilities import get_mac_vendor
+from navv.utilities import get_mac_vendor, timeit
 from navv.validators import is_ipv4_address, is_ipv6_address
 
 
@@ -37,6 +37,7 @@ def get_zeek_df(zeek_data: list):
     )
 
 
+@timeit
 def get_inventory_report_df(zeek_df: pd.DataFrame):
     """Return a pandas dataframe of the inventory report data."""
     zeek_df["port_and_proto"] = zeek_df["port"] + "/" + zeek_df["proto"]

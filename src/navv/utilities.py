@@ -4,12 +4,13 @@
 
 import os
 import contextlib
+from functools import wraps
 import json
-import time
+from time import monotonic
 
 from tqdm import tqdm
 
-from navv.message_handler import info_msg, error_msg
+from navv.message_handler import info_msg, success_msg, warning_msg, error_msg
 from navv.validators import is_mac_address
 
 
@@ -28,20 +29,18 @@ def pushd(new_dir):
         os.chdir(previous_dir)
 
 
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        td = time.time() - ts
-        time_elapsed = f"{method.__name__}:\n\tHours: {int(int(td / 3600) % 24)}\n\tMinutes: {int(int(td / 60) % 60)}\n\tSeconds: {int(td % 60)}"
-        if "timer" in kw:
-            kw["timer"][
-                method.__name__
-            ] = f"{int(td/86400)} day(s) {int(td%86400/3600)} hour(s) {int(td%3600/60)} minutes {int(td%60)} seconds"
-        info_msg(time_elapsed)
-        return result
+def timeit(func):
+    @wraps(func)
+    def _timeit(*args, **kwargs):
+        start = monotonic()
+        try:
+            info_msg(f"running {func.__name__}")
+            return func(*args, **kwargs)
+        finally:
+            end = monotonic()
+            success_msg(f"{func.__name__} execution time:\n{end - start:0.2f} seconds")
 
-    return timed
+    return _timeit
 
 
 def trim_dns_data(data):
