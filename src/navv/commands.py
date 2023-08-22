@@ -72,17 +72,11 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
 
     # Get zeek data
     zeek_data = get_zeek_data(zeek_logs)
-    zeek_df = get_zeek_df(zeek_data)
-
-    # Get inventory report dataframe
-    inventory_df = get_inventory_report_df(zeek_df)
-
-    # Turn zeekcut data into rows for spreadsheet
-    rows = create_analysis_array(zeek_data, timer=timer_data)
 
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
 
+    dns_filtered = {}
     if os.path.exists(json_path):
         with open(json_path, "rb") as json_file:
             dns_filtered = json.load(json_file)
@@ -92,6 +86,15 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
             log_file=os.path.join(zeek_logs, "dns.log"),
         )
         dns_filtered = trim_dns_data(dns_data)
+
+    # Get zeek dataframe
+    zeek_df = get_zeek_df(zeek_data, dns_filtered)
+
+    # Get inventory report dataframe
+    inventory_df = get_inventory_report_df(zeek_df)
+
+    # Turn zeekcut data into rows for spreadsheet
+    rows = create_analysis_array(zeek_data, timer=timer_data)
 
     ext_IPs = set()
     unk_int_IPs = set()
