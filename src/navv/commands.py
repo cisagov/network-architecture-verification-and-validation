@@ -1,5 +1,4 @@
 """CLI Commands."""
-import json
 import os
 import webbrowser
 
@@ -25,8 +24,8 @@ from navv.spreadsheet_tools import (
     write_stats_sheet,
     write_unknown_internals_sheet,
 )
-from navv.zeek import run_zeek, perform_zeekcut
-from navv.utilities import pushd, trim_dns_data
+from navv.zeek import get_dns_data, run_zeek, perform_zeekcut
+from navv.utilities import pushd
 
 
 @click.command("generate")
@@ -76,16 +75,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
 
-    dns_filtered = {}
-    if os.path.exists(json_path):
-        with open(json_path, "rb") as json_file:
-            dns_filtered = json.load(json_file)
-    else:
-        dns_data = perform_zeekcut(
-            fields=["query", "answers", "qtype", "rcode_name"],
-            log_file=os.path.join(zeek_logs, "dns.log"),
-        )
-        dns_filtered = trim_dns_data(dns_data)
+    # Get dns data from zeek logs
+    dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
 
     # Get zeek dataframe
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
