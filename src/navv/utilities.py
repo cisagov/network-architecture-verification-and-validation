@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 
 # Copyright 2023 Battelle Energy Alliance, LLC
-
 import os
 import contextlib
 from functools import wraps
-import json
 from time import monotonic
 
 from tqdm import tqdm
 
-from navv.message_handler import info_msg, success_msg, warning_msg, error_msg
+from navv.message_handler import info_msg, success_msg, error_msg
 from navv.validators import is_mac_address
-
-
-MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
 
 
 @contextlib.contextmanager
@@ -57,16 +52,13 @@ def trim_dns_data(data):
     return ret_data
 
 
-def get_mac_vendor(mac_address: str) -> str:
+def get_mac_vendor(mac_vendors: dict, mac_address: str) -> str:
     """Return the vendor of the MAC address."""
     mac_address = mac_address.upper()
 
     if not is_mac_address(mac_address):
         error_msg(f"Invalid MAC address: {mac_address}")
         return f"Bad MAC address {mac_address}"
-
-    with open(MAC_VENDORS_JSON_FILE) as f:
-        mac_vendors = json.load(f)
 
     try:
         vendor = [

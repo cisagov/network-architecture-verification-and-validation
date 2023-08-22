@@ -1,10 +1,13 @@
+import json
 import os
-from ipaddress import IPv4Address, IPv6Address
 import pandas as pd
 
 from navv.zeek import perform_zeekcut
 from navv.utilities import get_mac_vendor, timeit
 from navv.validators import is_ipv4_address, is_ipv6_address
+
+
+MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
 
 
 def get_zeek_data(zeek_logs):
@@ -74,7 +77,6 @@ def get_inventory_report_df(zeek_df: pd.DataFrame):
             subset=["src_ipv4", "src_ipv6", "dst_ipv4", "dst_ipv6", "port_and_proto"]
         )
     )
-    df["vendor"] = df["mac"].apply(lambda mac: get_mac_vendor(mac))
 
     grouped_df = (
         df.groupby("mac", as_index=False)
@@ -89,7 +91,12 @@ def get_inventory_report_df(zeek_df: pd.DataFrame):
         )
         .reset_index()
     )
-    grouped_df["vendor"] = grouped_df["mac"].apply(lambda mac: get_mac_vendor(mac))
+
+    with open(MAC_VENDORS_JSON_FILE) as f:
+        mac_vendors = json.load(f)
+    grouped_df["vendor"] = grouped_df["mac"].apply(
+        lambda mac: get_mac_vendor(mac_vendors, mac)
+    )
     grouped_df["ipv4"] = (grouped_df["src_ipv4"] + grouped_df["dst_ipv4"]).apply(
         lambda ip: list(set(ip))
     )
