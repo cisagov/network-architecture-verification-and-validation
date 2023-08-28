@@ -1,5 +1,4 @@
 """CLI Commands."""
-import json
 import os
 import webbrowser
 
@@ -22,12 +21,11 @@ from navv.spreadsheet_tools import (
     write_conn_states_sheet,
     write_externals_sheet,
     write_inventory_report_sheet,
-    write_macs_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
 )
-from navv.zeek import run_zeek, perform_zeekcut
-from navv.utilities import pushd, trim_dns_data
+from navv.zeek import get_dns_data, run_zeek, perform_zeekcut
+from navv.utilities import pushd
 
 
 @click.command("generate")
@@ -73,26 +71,21 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
 
     # Get zeek data
     zeek_data = get_zeek_data(zeek_logs)
-    zeek_df = get_zeek_df(zeek_data)
+
+    # Get dns data for resolution
+    json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
+
+    # Get dns data from zeek logs
+    dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
+
+    # Get zeek dataframe
+    zeek_df = get_zeek_df(zeek_data, dns_filtered)
 
     # Get inventory report dataframe
     inventory_df = get_inventory_report_df(zeek_df)
 
     # Turn zeekcut data into rows for spreadsheet
-    rows, mac_dict = create_analysis_array(zeek_data, timer=timer_data)
-
-    # Get dns data for resolution
-    json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
-
-    if os.path.exists(json_path):
-        with open(json_path, "rb") as json_file:
-            dns_filtered = json.load(json_file)
-    else:
-        dns_data = perform_zeekcut(
-            fields=["query", "answers", "qtype", "rcode_name"],
-            log_file=os.path.join(zeek_logs, "dns.log"),
-        )
-        dns_filtered = trim_dns_data(dns_data)
+    rows = create_analysis_array(zeek_data, timer=timer_data)
 
     ext_IPs = set()
     unk_int_IPs = set()
@@ -111,8 +104,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     )
 
     write_inventory_report_sheet(inventory_df, wb)
-
-    write_macs_sheet(mac_dict, wb)
 
     write_externals_sheet(ext_IPs, wb)
 

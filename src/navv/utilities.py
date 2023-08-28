@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 
 # Copyright 2023 Battelle Energy Alliance, LLC
-
 import os
 import contextlib
-import json
-import time
+from functools import wraps
+from time import monotonic
 
 from tqdm import tqdm
 
-from navv.message_handler import info_msg, error_msg
+from navv.message_handler import info_msg, success_msg, error_msg
 from navv.validators import is_mac_address
-
-
-MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
 
 
 @contextlib.contextmanager
@@ -28,20 +24,18 @@ def pushd(new_dir):
         os.chdir(previous_dir)
 
 
-def timeit(method):
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        td = time.time() - ts
-        time_elapsed = f"{method.__name__}:\n\tHours: {int(int(td / 3600) % 24)}\n\tMinutes: {int(int(td / 60) % 60)}\n\tSeconds: {int(td % 60)}"
-        if "timer" in kw:
-            kw["timer"][
-                method.__name__
-            ] = f"{int(td/86400)} day(s) {int(td%86400/3600)} hour(s) {int(td%3600/60)} minutes {int(td%60)} seconds"
-        info_msg(time_elapsed)
-        return result
+def timeit(func):
+    @wraps(func)
+    def _timeit(*args, **kwargs):
+        start = monotonic()
+        try:
+            info_msg(f"running {func.__name__}")
+            return func(*args, **kwargs)
+        finally:
+            end = monotonic()
+            success_msg(f"{func.__name__} execution time:\n{end - start:0.2f} seconds")
 
-    return timed
+    return _timeit
 
 
 def trim_dns_data(data):
@@ -58,16 +52,13 @@ def trim_dns_data(data):
     return ret_data
 
 
-def get_mac_vendor(mac_address: str) -> str:
+def get_mac_vendor(mac_vendors: dict, mac_address: str) -> str:
     """Return the vendor of the MAC address."""
     mac_address = mac_address.upper()
 
     if not is_mac_address(mac_address):
         error_msg(f"Invalid MAC address: {mac_address}")
         return f"Bad MAC address {mac_address}"
-
-    with open(MAC_VENDORS_JSON_FILE) as f:
-        mac_vendors = json.load(f)
 
     try:
         vendor = [

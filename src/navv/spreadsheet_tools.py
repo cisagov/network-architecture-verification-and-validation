@@ -19,8 +19,8 @@ import netaddr
 from tqdm import tqdm
 
 from navv import data_types
-from navv import utilities
-from navv.message_handler import info_msg
+from navv.utilities import timeit
+from navv.message_handler import warning_msg
 
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
@@ -83,7 +83,7 @@ def get_workbook(file_name):
     return wb
 
 
-@utilities.timeit
+@timeit
 def get_inventory_data(ws, **kwargs):
     inventory = dict()
     for row in itertools.islice(ws.iter_rows(), 1, None):
@@ -97,7 +97,7 @@ def get_inventory_data(ws, **kwargs):
     return inventory
 
 
-@utilities.timeit
+@timeit
 def get_segments_data(ws):
     segments = list()
     for row in itertools.islice(ws.iter_rows(), 1, None):
@@ -125,10 +125,9 @@ def get_package_data():
     return services, conn_states
 
 
-@utilities.timeit
+@timeit
 def create_analysis_array(sort_input, **kwargs):
     arr = []
-    mac_dict = {}
     # sort by count and source IP
     counted = sorted(
         list(
@@ -150,18 +149,11 @@ def create_analysis_array(sort_input, **kwargs):
                 conn=cells[5],
             )
         )
-        if cells[6] is not None and cells[6] != "":
-            if netaddr.IPAddress(cells[1]).is_private():
-                if cells[6] not in mac_dict:
-                    mac_dict[cells[6]] = [cells[1]]
-                else:
-                    if cells[1] not in mac_dict[cells[6]]:
-                        mac_dict[cells[6]].append(cells[1])
 
-    return arr, mac_dict
+    return arr
 
 
-@utilities.timeit
+@timeit
 def perform_analysis(
     wb,
     rows,
@@ -190,7 +182,7 @@ def perform_analysis(
             "Notes",
         ]
     )
-    info_msg("Performing analysis(including lookups). This may take a while:")
+    warning_msg("this may take awhile...")
     for row_index, row in enumerate(tqdm(rows), start=2):
         row.src_desc = handle_ip(
             row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs
@@ -333,54 +325,67 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
 
 
 def write_conn_states_sheet(conn_states, wb):
-    new_ws = make_sheet(wb, "Conn_States", idx=8)
+    new_ws = make_sheet(wb, "Conn States", idx=8)
     new_ws.append(["State", "Description"])
-    for row_num, conn_state in enumerate(conn_states, start=2):
-        state_cell = new_ws[f"A{row_num}"]
-        desc_cell = new_ws[f"B{row_num}"]
+    for index, conn_state in enumerate(conn_states, start=2):
+        # State column
+        state_cell = new_ws[f"A{index}"]
         state_cell.value = conn_state
         state_cell.fill = conn_states[conn_state][0]
         state_cell.font = conn_states[conn_state][1]
+
+        # Description column
+        desc_cell = new_ws[f"B{index}"]
+        desc_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
         desc_cell.value = conn_states[conn_state][2]
         desc_cell.fill = conn_states[conn_state][0]
         desc_cell.font = conn_states[conn_state][1]
-    auto_adjust_width(new_ws)
+    auto_adjust_width(new_ws, 100)
 
 
 def write_inventory_report_sheet(inventory_df, wb):
     """Get Mac Addresses with their associated IP addresses and manufacturer."""
     ir_sheet = make_sheet(wb, "Inventory Report", idx=4)
-    ir_sheet.append(["MAC", "Vendor", "IPv4", "IPv6", "Port and Proto"])
+    ir_sheet.append(["MAC", "Vendor", "Hostname", "IPv4", "IPv6", "Port and Proto"])
 
     inventory_data = inventory_df.to_dict(orient="records")
     for index, row in enumerate(inventory_data, start=2):
-        # Mac Address column
+        # Mac column
         ir_sheet[f"A{index}"].value = row["mac"]
 
         # Vendor column
         ir_sheet[f"B{index}"].value = row["vendor"]
 
+        # Hostname column
+        hostname_column = ir_sheet[f"C{index}"]
+        hostname_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
+
+        hostname = ""
+        if row["hostname"]:
+            hostname = ", ".join(each for each in row["hostname"] if each)
+        hostname_column.value = hostname
+
         # IPv4 Address column
-        ipv4_list_cell = ir_sheet[f"C{index}"]
-        ipv4_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+        ipv4_column = ir_sheet[f"D{index}"]
+        ipv4_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
 
         ipv4 = ""
         if row["ipv4"]:
             ipv4 = ", ".join(each for each in row["ipv4"] if each)
-        ipv4_list_cell.value = ipv4
+        ipv4_column.value = ipv4
 
         # IPv6 Address column
-        ipv6_list_cell = ir_sheet[f"D{index}"]
-        ipv6_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
+        ipv6_column = ir_sheet[f"E{index}"]
+        ipv6_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
 
         ipv6 = ""
         if row["ipv6"]:
             ipv6 = ", ".join(each for each in row["ipv6"] if each)
-        ipv6_list_cell.value = ipv6
+        ipv6_column.value = ipv6
 
         # Port and Protocol column
-        pnp_sheet = ir_sheet[f"E{index}"]
-        pnp_sheet.alignment = openpyxl.styles.Alignment(wrap_text=True)
+        pnp_column = ir_sheet[f"F{index}"]
+        pnp_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
 
         port_and_proto = ""
         if row["port_and_proto"]:
@@ -388,48 +393,14 @@ def write_inventory_report_sheet(inventory_df, wb):
                 list(set(each for each in row["port_and_proto"] if each))[:10]
             )
 
-        pnp_sheet.value = port_and_proto
+        pnp_column.value = port_and_proto
 
         # Add styling to every other row
         if index % 2 == 0:
             for cell in ir_sheet[f"{index}:{index}"]:
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
-    auto_adjust_width(ir_sheet)
-    ir_sheet.column_dimensions["C"].width = 39 * 1.2
-
-
-def write_macs_sheet(mac_dict, wb):
-    """Fill spreadsheet with MAC address -> IP address translation with manufacturer information"""
-    macs_sheet = make_sheet(wb, "MACs", idx=4)
-    macs_sheet.append(["MAC", "Manufacturer", "IPs"])
-    for row_index, mac in enumerate(mac_dict, start=2):
-        macs_sheet[f"A{row_index}"].value = mac
-        try:
-            eui = netaddr.EUI(mac)
-            oui = eui.oui
-            orgs = [oui.registration(i).org for i in range(oui.reg_count)]
-        except netaddr.core.NotRegisteredError:
-            orgs = ["Not a registered manufacturer"]
-        except netaddr.core.AddrFormatError:
-            orgs = [f"Bad MAC address {mac}"]
-        except Exception:
-            orgs = ["Unspecified MAC error"]
-        macs_sheet[f"B{row_index}"].value = "\n".join(orgs)
-        ip_list_cell = macs_sheet[f"C{row_index}"]
-        ip_list_cell.alignment = openpyxl.styles.Alignment(wrap_text=True)
-        num_ips = len(mac_dict[mac])
-        if num_ips > 10:
-            display_list = mac_dict[mac][:10]
-            display_list.append(f"Displaying 10 IPs of {num_ips}")
-            ip_list_cell.value = "\n".join(display_list)
-        else:
-            ip_list_cell.value = "\n".join(mac_dict[mac][:10])
-        macs_sheet.row_dimensions[row_index].height = min(num_ips, 11) * 15
-        if row_index % 2 == 0:
-            for cell in macs_sheet[f"{row_index}:{row_index}"]:
-                cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
-    auto_adjust_width(macs_sheet)
-    macs_sheet.column_dimensions["C"].width = 39 * 1.2
+    auto_adjust_width(ir_sheet, 40)
+    # ir_sheet.column_dimensions.width = 39 * 1.2
 
 
 def write_externals_sheet(IPs, wb):
@@ -444,7 +415,7 @@ def write_externals_sheet(IPs, wb):
 
 
 def write_unknown_internals_sheet(IPs, wb):
-    int_sheet = make_sheet(wb, "Unkown_Internals", idx=6)
+    int_sheet = make_sheet(wb, "Unknown Internals", idx=6)
     int_sheet.append(["Unknown Internal IP"])
     for row_index, IP in enumerate(sorted(IPs), start=2):
         cell = int_sheet[f"A{row_index}"]
@@ -473,11 +444,10 @@ def make_sheet(wb, sheet_name, idx=None):
     return wb.create_sheet(sheet_name, index=idx)
 
 
-def auto_adjust_width(sheet):
-    factor = 1.7
+def auto_adjust_width(sheet, width=40):
+    """Adjust the width of the columns to fit the data"""
     for col in sheet.columns:
-        vals = (len("{}".format(c.value)) for c in col if c.value is not None)
-        max_width = max(vals) * factor
+        max_width = max(len(f"{c.value}") for c in col if c.value) + 2
         sheet.column_dimensions[col[0].column_letter].width = (
-            max_width if max_width < 20 else max_width * 1.2 / 1.7
+            width if width < max_width else max_width
         )
