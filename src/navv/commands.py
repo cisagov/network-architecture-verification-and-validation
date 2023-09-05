@@ -5,7 +5,7 @@ import webbrowser
 
 # Third-Party Libraries
 import click
-from navv.bll import get_inventory_report_df, get_zeek_df
+from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
 
 # cisagov Libraries
 from navv.gui import app
@@ -21,10 +21,17 @@ from navv.spreadsheet_tools import (
     write_conn_states_sheet,
     write_externals_sheet,
     write_inventory_report_sheet,
+    write_snmp_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
 )
-from navv.zeek import get_conn_data, get_dns_data, run_zeek, perform_zeekcut
+from navv.zeek import (
+    get_conn_data,
+    get_dns_data,
+    get_snmp_data,
+    run_zeek,
+    perform_zeekcut,
+)
 from navv.utilities import pushd
 
 
@@ -69,17 +76,17 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
-    # Get zeek conn.log data
+    # Get zeek data from conn.log, dns.log and snmp.log
     zeek_data = get_conn_data(zeek_logs)
+    snmp_data = get_snmp_data(zeek_logs)
+    dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
 
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
 
-    # Get dns data from zeek logs
-    dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
-
-    # Get zeek dataframe
+    # Get zeek dataframes
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
+    snmp_df = get_snmp_df(snmp_data)
 
     # Get inventory report dataframe
     inventory_df = get_inventory_report_df(zeek_df)
@@ -108,6 +115,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_externals_sheet(ext_IPs, wb)
 
     write_unknown_internals_sheet(unk_int_IPs, wb)
+
+    write_snmp_sheet(snmp_df, wb)
 
     auto_adjust_width(wb["Analysis"])
 

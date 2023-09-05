@@ -142,3 +142,20 @@ def get_inventory_report_df(zeek_df: pd.DataFrame):
     )
 
     return grouped_df
+
+
+@timeit
+def get_snmp_df(zeek_data: list):
+    """Return a pandas dataframe of the snmp.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "src_port",
+            "dst_ip",
+            "dst_port",
+            "version",
+            "community",
+        ],
+    )

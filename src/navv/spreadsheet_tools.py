@@ -400,7 +400,40 @@ def write_inventory_report_sheet(inventory_df, wb):
             for cell in ir_sheet[f"{index}:{index}"]:
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
     auto_adjust_width(ir_sheet, 40)
-    # ir_sheet.column_dimensions.width = 39 * 1.2
+
+
+def write_snmp_sheet(snmp_df, wb):
+    """Write SNMP log data to excel sheet."""
+    sheet = make_sheet(wb, "SNMP", idx=4)
+    sheet.append(
+        ["Src IPv4", "Src Port", "Dest IPv4", "Dest Port", "Version", "Community"]
+    )
+
+    for index, row in enumerate(snmp_df.to_dict(orient="records"), start=2):
+        # Source IPv4 column
+        sheet[f"A{index}"].value = row["src_ip"]
+
+        # Source Port column
+        sheet[f"B{index}"].value = row["src_port"]
+
+        # Destination IPv4 column
+        sheet[f"C{index}"].value = row["dst_ip"]
+
+        # Destination Port column
+        sheet[f"D{index}"].value = row["dst_port"]
+
+        # Version column
+        sheet[f"E{index}"].value = row["version"]
+
+        # Community column
+        sheet[f"F{index}"].value = row["community"]
+
+        # Add styling to every other row
+        if index % 2 == 0:
+            for cell in sheet[f"{index}:{index}"]:
+                cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
+
+    auto_adjust_width(sheet, 40)
 
 
 def write_externals_sheet(IPs, wb):
