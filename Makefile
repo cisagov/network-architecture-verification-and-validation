@@ -16,7 +16,7 @@ install:
 	pip install navv
 
 # target: generate - Generate analysis excel sheet
-# Optionally set PCAP_PATH to a pcap file
+# optionally set PCAP_PATH to a relative pcap file path
 # example: make generate PCAP_PATH=test-path/to/file.pcap
 generate:
 	navv generate -o analysis -z test-data/logs test-customer $(if $(PCAP_PATH), -p $(PCAP_PATH))
