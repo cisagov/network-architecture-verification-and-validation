@@ -1,4 +1,5 @@
-.PHONY: run
+.PHONY: generate launch
+
 include .env
 export
 
@@ -10,17 +11,15 @@ help:
 install-develop:
 	pip install -e .
 
-# target: install - Install application
+# target: install - Install production application
 install:
 	pip install navv
 
-# target: generate - Generate analysis from pcap
+# target: generate - Generate analysis excel sheet
+# Optionally set PCAP_PATH to a pcap file
+# example: make generate PCAP_PATH=test-path/to/file.pcap
 generate:
-	navv generate -o analysis -p test-data/test_data.pcap -z test-data/logs test-customer
-
-# target: load-metadata - Load metadata
-load-metadata:
-	navv generate -o analysis -z test-data/logs test-customer
+	navv generate -o analysis -z test-data/logs test-customer $(if $(PCAP_PATH), -p $(PCAP_PATH))
 
 # target: launch - Launch GUI application
 launch:
