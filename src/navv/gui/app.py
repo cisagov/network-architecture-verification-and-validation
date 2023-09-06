@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 
 from navv.message_handler import warning_msg
 
@@ -8,4 +8,4 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "<h1>NAVV GUI</h1>"
+    return render_template("index.html")
