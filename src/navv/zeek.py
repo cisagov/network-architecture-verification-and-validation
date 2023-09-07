@@ -7,13 +7,24 @@ from navv.utilities import pushd, timeit, trim_dns_data
 
 
 @timeit
-def run_zeek(pcap_path, zeek_logs_path, **kwargs):
-    with pushd(zeek_logs_path):
-        # can we add Site::local_nets to the zeek call here?
-        try:
-            check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
-        except Exception as e:
-            error_msg(e)
+def get_conn_data(zeek_logs):
+    """Return a list of Zeek conn.log data."""
+    return (
+        perform_zeekcut(
+            fields=[
+                "id.orig_h",
+                "id.resp_h",
+                "id.resp_p",
+                "proto",
+                "conn_state",
+                "orig_l2_addr",
+                "resp_l2_addr",
+            ],
+            log_file=os.path.join(zeek_logs, "conn.log"),
+        )
+        .decode("utf-8")
+        .split("\n")[:-1]
+    )
 
 
 @timeit
@@ -31,6 +42,26 @@ def get_dns_data(customer_name, output_dir, zeek_logs):
     return trim_dns_data(dns_data)
 
 
+@timeit
+def get_snmp_data(zeek_logs):
+    """Get SNMP data from zeek logs or from a json file if it exists"""
+    return (
+        perform_zeekcut(
+            fields=[
+                "id.orig_h",
+                "id.orig_p",
+                "id.resp_h",
+                "id.resp_p",
+                "version",
+                "community",
+            ],
+            log_file=os.path.join(zeek_logs, "snmp.log"),
+        )
+        .decode("utf-8")
+        .split("\n")[:-1]
+    )
+
+
 def perform_zeekcut(fields, log_file):
     """Perform the call to zeek-cut with the identified fields on the specified log file"""
     try:
@@ -42,3 +73,13 @@ def perform_zeekcut(fields, log_file):
     except OSError as e:
         # probably "file does not exist"
         return b""
+
+
+@timeit
+def run_zeek(pcap_path, zeek_logs_path, **kwargs):
+    with pushd(zeek_logs_path):
+        # can we add Site::local_nets to the zeek call here?
+        try:
+            check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
+        except Exception as e:
+            error_msg(e)

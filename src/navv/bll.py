@@ -2,32 +2,11 @@ import json
 import os
 import pandas as pd
 
-from navv.zeek import perform_zeekcut
 from navv.utilities import get_mac_vendor, timeit
 from navv.validators import is_ipv4_address, is_ipv6_address
 
 
 MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
-
-
-def get_zeek_data(zeek_logs):
-    """Return a list of Zeek conn.log data."""
-    return (
-        perform_zeekcut(
-            fields=[
-                "id.orig_h",
-                "id.resp_h",
-                "id.resp_p",
-                "proto",
-                "conn_state",
-                "orig_l2_addr",
-                "resp_l2_addr",
-            ],
-            log_file=os.path.join(zeek_logs, "conn.log"),
-        )
-        .decode("utf-8")
-        .split("\n")[:-1]
-    )
 
 
 def get_zeek_df(zeek_data: list, dns_data: dict):
@@ -163,3 +142,20 @@ def get_inventory_report_df(zeek_df: pd.DataFrame):
     )
 
     return grouped_df
+
+
+@timeit
+def get_snmp_df(zeek_data: list):
+    """Return a pandas dataframe of the snmp.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "src_port",
+            "dst_ip",
+            "dst_port",
+            "version",
+            "community",
+        ],
+    )
