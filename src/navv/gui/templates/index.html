@@ -51,7 +51,7 @@
         </p>
         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
           <button type="button" class="btn btn-primary btn-sm px-4 gap-3">Upload PCAP</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm px-4">Download Excel</button>
+          <a class="btn btn-outline-secondary btn-sm px-4" href="{{ url_for('download') }}">Download Excel</a>
         </div>
       </div>
     </div>
@@ -65,8 +65,6 @@
         </div>
       </div>
     </div>
-
-    <div class="b-divider mb-0"></div>
   </main>
 
 
