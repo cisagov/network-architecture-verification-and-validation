@@ -8,7 +8,7 @@ import click
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
 
 # cisagov Libraries
-from navv.gui import app
+from navv.gui.app import app
 from navv.message_handler import success_msg, warning_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
