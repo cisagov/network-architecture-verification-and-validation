@@ -3,6 +3,8 @@ import os
 
 from flask import Flask, render_template, send_from_directory
 
+from navv.gui.utils import get_pcap_file
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -11,11 +13,14 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    for file in os.listdir(os.getcwd()):
-        if file.endswith(".pcap"):
-            logger.info(f"Found pcap file: {file}")
-            break
-    return render_template("index.html")
+    pcap_file, pcap_msg, pcap_msg_color = get_pcap_file()
+
+    return render_template(
+        "index.html",
+        pcap_file=pcap_file,
+        pcap_msg=pcap_msg,
+        pcap_msg_color=pcap_msg_color,
+    )
 
 
 @app.route("/download")

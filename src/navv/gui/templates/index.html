@@ -50,10 +50,12 @@
           analyze network traffic.
         </p>
         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-          <button type="button" class="btn btn-primary btn-sm px-4 gap-3">Upload PCAP</button>
+          <button type="file" class="btn btn-primary btn-sm px-4 gap-3 {% if pcap_file %}disabled{% endif %}">Upload
+            PCAP</button>
           <a class="btn btn-outline-secondary btn-sm px-4" href="{{ url_for('download') }}">Download Excel</a>
         </div>
       </div>
+      <div class="alert alert-{{ pcap_msg_color }} mx-auto mt-3" role="alert">{{ pcap_msg }}</div>
     </div>
 
     <div class="bg-dark text-secondary px-2 py-3 text-center">
