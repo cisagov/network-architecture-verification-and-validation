@@ -13,10 +13,35 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
+    """Home page."""
     pcap_file, pcap_msg, pcap_msg_color = get_pcap_file()
 
     return render_template(
-        "index.html",
+        "home.html",
+        pcap_file=pcap_file,
+        pcap_msg=pcap_msg,
+        pcap_msg_color=pcap_msg_color,
+    )
+
+
+@app.route("/new-analysis")
+def new_analysis():
+    pcap_file, pcap_msg, pcap_msg_color = get_pcap_file()
+
+    return render_template(
+        "create_new.html",
+        pcap_file=pcap_file,
+        pcap_msg=pcap_msg,
+        pcap_msg_color=pcap_msg_color,
+    )
+
+
+@app.route("/existing-analysis")
+def existing_analysis():
+    pcap_file, pcap_msg, pcap_msg_color = get_pcap_file()
+
+    return render_template(
+        "update_existing.html",
         pcap_file=pcap_file,
         pcap_msg=pcap_msg,
         pcap_msg_color=pcap_msg_color,

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block main %}
+<div class="px-4 mb-3 text-center">
+    <p class="mb-3">Update an existing spreadsheet. You can optionally upload Zeek logs to analyze network traffic.
+    </p>
+</div>
+<form class="px-5 mx-5">
+    <div class="input-group-sm mb-3">
+        <label class="input-group-text" for="inputGroupFile01">Upload Zeek Logs</label>
+        <input type="file" class="form-control" id="inputGroupFile01">
+        <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. Optional.</div>
+    </div>
+    <div class="input-group-sm mb-3">
+        <label class="input-group-text" for="inputGroupFile01">Upload Spreadsheet</label>
+        <input type="file" class="form-control" id="inputGroupFile01">
+        <div class="form-text" id="basic-addon4">Upload Existing Spreadsheet. Required.</div>
+    </div>
+    <a class="btn btn-primary btn-sm px-4" href="{{ url_for('download') }}">Run Analysis</a>
+</form>
+<div class="alert alert-{{ pcap_msg_color }} mx-auto mt-3" role="alert">{{ pcap_msg }}</div>
+{% endblock %}
