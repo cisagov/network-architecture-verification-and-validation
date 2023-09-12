@@ -6,24 +6,29 @@
         analyze network traffic.
     </p>
     <div class="btn-group">
-        <input type="radio" class="btn-check" name="options" id="pcap" data-bs-toggle="collapse" href="#collapseExample"
+        <input type="radio" class="btn-check" name="options" id="pcap" data-bs-toggle="collapse" href="#collapselogs"
             autocomplete="off" />
         <label class="btn btn-primary" for="pcap">Upload PCAP File</label>
 
-        <input type="radio" class="btn-check" name="options" id="logs" autocomplete="off" />
+        <input type="radio" class="btn-check" name="options" id="logs" data-bs-toggle="collapse" href="#collapselogs"
+            autocomplete="off" />
         <label class="btn btn-secondary" for="logs">Upload Zeek Logs</label>
     </div>
 </div>
 <form class="px-5 mx-5">
-    <div class="input-group-sm collapse mb-3" id="collapseExample">
-        <label class="input-group-text" for="inputGroupFile01">Upload PCAP</label>
-        <input type="file" class="form-control" id="inputGroupFile01">
-        <div class="form-text">Upload PCAP file.</div>
+    <div class="input-group-sm mb-3">
+        <div id="collapsepcap" class="collapse">
+            <label class="input-group-text" for="inputGroupFile01">Upload PCAP</label>
+            <input type="file" class="form-control" id="inputGroupFile01">
+            <div class="form-text">Upload PCAP file.</div>
+        </div>
     </div>
     <div class="input-group-sm mb-3">
-        <label class="input-group-text" for="inputGroupFile01">Upload Zeek logs</label>
-        <input type="file" class="form-control" id="inputGroupFile01">
-        <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip)</div>
+        <div id="collapselogs" class="collapse">
+            <label class="input-group-text" for="inputGroupFile01">Upload Zeek logs</label>
+            <input type="file" class="form-control" id="inputGroupFile01">
+            <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip)</div>
+        </div>
     </div>
     <a class="btn btn-primary btn-sm px-4" href="{{ url_for('download') }}">Run Analysis</a>
 </form>
