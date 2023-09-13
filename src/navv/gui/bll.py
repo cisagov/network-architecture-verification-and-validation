@@ -1,15 +1,6 @@
-"""CLI Commands."""
 import os
-import webbrowser
 
-
-# Third-Party Libraries
-import click
-
-# cisagov Libraries
-from navv.gui.app import app
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
-from navv.message_handler import success_msg, warning_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
     create_analysis_array,
@@ -35,29 +26,6 @@ from navv.zeek import (
 from navv.utilities import pushd
 
 
-@click.command("generate")
-@click.option(
-    "-o",
-    "--output-dir",
-    required=False,
-    help="Directory to place resultant analysis files in. Defaults to current working directory.",
-    type=str,
-)
-@click.option(
-    "-p",
-    "--pcap",
-    required=False,
-    help="Path to pcap file. NAVV requires zeek logs or pcap. If used, zeek will run on pcap to create new logs.",
-    type=str,
-)
-@click.option(
-    "-z",
-    "--zeek-logs",
-    required=False,
-    help="Path to store or contain zeek log files. Defaults to current working directory.",
-    type=str,
-)
-@click.argument("customer_name")
 def generate(customer_name, output_dir, pcap, zeek_logs):
     """Generate excel sheet."""
     with pushd(output_dir):
@@ -141,15 +109,3 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_conn_states_sheet(conn_states, wb)
 
     wb.save(file_name)
-
-    if pcap:
-        success_msg(f"Successfully created file: {file_name}")
-
-
-@click.command("launch")
-def launch():
-    """Launch the NAVV GUI."""
-    port = 5000
-    warning_msg("Launching GUI in browser...")
-    webbrowser.open(f"http://127.0.0.1:{port}/")
-    app.run(port=port)

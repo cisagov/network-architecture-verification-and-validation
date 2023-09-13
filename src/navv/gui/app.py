@@ -1,7 +1,8 @@
 import logging
 import os
 
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, request, send_from_directory
+from navv.gui.bll import generate
 
 from navv.gui.utils import get_pcap_file
 
@@ -48,17 +49,19 @@ def existing_analysis():
     )
 
 
-@app.route("/download")
+@app.route("/download", methods=["POST"])
 def download():
     """Download the network analysis excel file."""
-    filename = "test-customer_network_analysis.xlsx"
-    current_path = os.getcwd()
+    # Get customer name
+    customer_name = request.form["customername"]
+    filename = f"{customer_name}_network_analysis.xlsx"
 
-    if not os.path.isfile(os.path.join(current_path, filename)):
-        logger.error(f"File {filename} not found in {current_path}")
+    # Get pcap file and Zeek logs if available
+    pcap_file = request.files.get("pcapfile")
+    if pcap_file.filename:
+        pcap_file.save(pcap_file.filename)
+    zeek_logs = request.files.get("zeeklogs")
+    if zeek_logs:
+        zeek_logs.save(zeek_logs.filename)
 
-    return send_from_directory(
-        current_path,
-        filename,
-        as_attachment=True,
-    )
+    generate(customer_name, os.getcwd(), pcap_file, zeek_logs)
