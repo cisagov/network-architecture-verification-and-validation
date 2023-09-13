@@ -1,7 +1,7 @@
 import logging
 import os
 
-from flask import Flask, render_template, request, send_file, send_from_directory
+from flask import Flask, render_template, request, send_file
 from navv.gui.bll import generate
 
 from navv.gui.utils import get_pcap_file
