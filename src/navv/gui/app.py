@@ -61,13 +61,18 @@ def download():
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
 
+    # set excel file
+    excel_file = request.files.get("spreadsheet")
+    if excel_file and excel_file.filename:
+        excel_file.save(os.path.join(output_dir, excel_file.filename))
+
     # Get pcap file and Zeek logs if available
     pcap_file = request.files.get("pcapfile")
-    if pcap_file.filename:
+    if pcap_file and pcap_file.filename:
         pcap_file.save(os.path.join(output_dir, pcap_file.filename))
 
     zeek_logs = request.files.get("zeeklogs")
-    if zeek_logs.filename:
+    if zeek_logs and zeek_logs.filename:
         zeek_logs.save(os.path.join(output_dir, zeek_logs.filename))
 
     memfile = generate(customer_name, output_dir, pcap_file, zeek_logs.filename)
