@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block main %}
+<div class="px-4 mb-3 text-center">
+    <p class="mb-3">Generate a spreadsheet for network traffic analysis.</p>
+    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-4">
+        <a class="btn btn-primary btn-sm px-4 gap-3" href="{{ url_for('new_analysis') }}">New Analysis</a>
+        <a class="btn btn-outline-secondary btn-sm px-4" href="{{ url_for('existing_analysis') }}">Existing Analysis</a>
+    </div>
+</div>
+{% endblock %}

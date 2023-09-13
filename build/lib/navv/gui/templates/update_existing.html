@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block main %}
+<div class="px-4 mb-3 text-center needs-validation">
+    <p class="mb-3">Update an existing spreadsheet. You can optionally upload Zeek logs to analyze network traffic.
+    </p>
+</div>
+<form class="px-5 mx-5 needs-validation" method="POST" action="{{ url_for('download') }}" enctype="multipart/form-data">
+    <div class="input-group-sm mb-3">
+        <label for="inputzeeklogs">Upload Zeek Logs</label>
+        <input accept=".zip" type="file" class="form-control" id="inputzeeklogs" name="zeeklogs" required>
+        <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip) Required.</div>
+    </div>
+    <div class="input-group-sm mb-3">
+        <label for="inputspreadsheet">Upload Spreadsheet</label>
+        <input accept=".xlsx,.xlsx" , type="file" class="form-control" id="inputspreadsheet" name="spreadsheet"
+            required>
+        <div class="form-text" id="basic-addon4">Upload Existing Spreadsheet. Required.</div>
+    </div>
+    <div class="input-group-sm mb-3">
+        <div>
+            <label for="inputname">Customer Name</label>
+            <input type="text" class="form-control" id="inputname" name="customername" required>
+            <div class="form-text">Input customer's name. Required.</div>
+            <div class="valid-feedback">
+                Running...
+            </div>
+        </div>
+    </div>
+    <input type="submit" id="runanalysis" class="btn btn-primary btn-sm px-4" value="Run Analysis" />
+</form>
+{% endblock %}

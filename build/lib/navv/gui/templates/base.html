@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Idaho National Laboratory">
+    <title>NAVV</title>
+
+    <link rel="canonical" href="https://pypi.org/project/navv/">
+
+
+
+    <!-- Bootstrap core CSS -->
+    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        .bd-placeholder-img {
+            font-size: 1.125rem;
+            text-anchor: middle;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+
+    <!-- Custom styles for this template -->
+    <link href="../static/styles.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <main>
+        <div class="px-4 mt-3 text-center">
+            <img class="d-block mx-auto mb-4" src="../static/img/navv-logo.png" alt="" width="100" height="100">
+            <h1 class="display-5 fw-bold">NAVV</h1>
+            <div class="col-lg-6 mx-auto">
+                <h3 class="lead mb-3">Network Architecture Verification and Validation</h3>
+            </div>
+        </div>
+        {% block main %}
+        {% endblock %}
+        <div class="bg-dark text-secondary px-2 py-3 mt-5 text-center">
+            <div class="py-3">
+                <div class="col-lg-6 mx-auto">
+                    <p class="fs-5 mb-3">This project uses <a
+                            class="link-offset-2 link-underline link-underline-opacity-0"
+                            href="https://zeek.org">Zeek</a>, a network security monitoring tool.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../static/js/bootstrap.bundle.min.js"></script>
+    <script src="../static/app.js"></script>
+
+
+</body>
+
+</html>
