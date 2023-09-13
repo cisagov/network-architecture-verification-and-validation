@@ -37,8 +37,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     with pushd(output_dir):
         pass
 
-    if spreadsheet:
-        wb = openpyxl.load_workbook(os.path.join(output_dir, spreadsheet))
+    if spreadsheet and spreadsheet.filename:
+        wb = openpyxl.load_workbook(os.path.join(output_dir, spreadsheet.filename))
     else:
         file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
         wb = get_workbook(file_name)

@@ -76,7 +76,7 @@ def download():
         zeek_logs.save(os.path.join(output_dir, zeek_logs.filename))
 
     memfile = generate(
-        customer_name, output_dir, pcap_file, zeek_logs.filename, excel_file.filename
+        customer_name, output_dir, pcap_file, zeek_logs.filename, excel_file
     )
 
     return send_file(memfile, download_name=filename, as_attachment=True)
