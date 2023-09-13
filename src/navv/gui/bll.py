@@ -1,4 +1,5 @@
 import os
+from zipfile import ZipFile
 
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
 from navv.spreadsheet_tools import (
@@ -32,15 +33,22 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         pass
     file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
 
-    wb = get_workbook(file_name)
+    # Extract Zeek logs from zip file
+    if zeek_logs.filename:
+        with ZipFile(f"{output_dir}/{zeek_logs.filename}", "r") as zip_file:
+            zip_file.extractall(path=output_dir)
+            zeek_logs = os.path.join(output_dir, zeek_logs.filename[:-4])
+    else:
+        zeek_logs = os.path.join(output_dir, zeek_logs.filename)
 
+    wb = get_workbook(file_name)
     services, conn_states = get_package_data()
     timer_data = dict()
     segments = get_segments_data(wb["Segments"])
     inventory = get_inventory_data(wb["Inventory Input"])
 
-    if pcap:
-        run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
+    if pcap.filename:
+        run_zeek(os.path.abspath(pcap.filename), zeek_logs, timer=timer_data)
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
@@ -87,7 +95,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_snmp_sheet(snmp_df, wb)
 
     auto_adjust_width(wb["Analysis"])
-
     times = (
         perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs, "conn.log"))
         .decode("utf-8")

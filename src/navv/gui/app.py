@@ -65,3 +65,9 @@ def download():
         zeek_logs.save(zeek_logs.filename)
 
     generate(customer_name, os.getcwd(), pcap_file, zeek_logs)
+
+    return send_from_directory(
+        os.getcwd(),
+        filename,
+        as_attachment=True,
+    )
