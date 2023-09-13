@@ -152,4 +152,4 @@ def launch():
     port = 5000
     warning_msg("Launching GUI in browser...")
     webbrowser.open(f"http://127.0.0.1:{port}/")
-    app.run(port=port, debug=True)
+    app.run(port=port)
