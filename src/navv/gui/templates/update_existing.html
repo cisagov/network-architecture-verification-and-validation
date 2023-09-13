@@ -8,8 +8,8 @@
 <form class="px-5 mx-5 needs-validation" method="POST" action="{{ url_for('download') }}" enctype="multipart/form-data">
     <div class="input-group-sm mb-3">
         <label for="inputzeeklogs">Upload Zeek Logs</label>
-        <input accept=".zip" type="file" class="form-control" id="inputzeeklogs" name="zeeklogs">
-        <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip) Optional.</div>
+        <input accept=".zip" type="file" class="form-control" id="inputzeeklogs" name="zeeklogs" required>
+        <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip) Required.</div>
     </div>
     <div class="input-group-sm mb-3">
         <label for="inputspreadsheet">Upload Spreadsheet</label>

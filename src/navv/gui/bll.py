@@ -4,6 +4,8 @@ import shutil
 from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 
+import openpyxl
+
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
 from navv.spreadsheet_tools import (
     auto_adjust_width,
@@ -30,11 +32,16 @@ from navv.zeek import (
 from navv.utilities import pushd
 
 
-def generate(customer_name, output_dir, pcap, zeek_logs_zip):
+def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     """Generate excel sheet."""
     with pushd(output_dir):
         pass
-    file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
+
+    if spreadsheet:
+        wb = openpyxl.load_workbook(os.path.join(output_dir, spreadsheet))
+    else:
+        file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
+        wb = get_workbook(file_name)
 
     # Extract Zeek logs from zip file
     if zeek_logs_zip:
@@ -45,13 +52,12 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip):
     else:
         zeek_logs = os.path.join(output_dir, "logs")
 
-    wb = get_workbook(file_name)
     services, conn_states = get_package_data()
     timer_data = dict()
     segments = get_segments_data(wb["Segments"])
     inventory = get_inventory_data(wb["Inventory Input"])
 
-    if pcap.filename:
+    if pcap and pcap.filename:
         run_zeek(os.path.join(output_dir, pcap.filename), zeek_logs, timer=timer_data)
     else:
         timer_data["run_zeek"] = "NOT RAN"
