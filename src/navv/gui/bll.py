@@ -1,4 +1,7 @@
+import io
 import os
+import shutil
+from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
@@ -27,19 +30,20 @@ from navv.zeek import (
 from navv.utilities import pushd
 
 
-def generate(customer_name, output_dir, pcap, zeek_logs):
+def generate(customer_name, output_dir, pcap, zeek_logs_zip):
     """Generate excel sheet."""
     with pushd(output_dir):
         pass
     file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
 
     # Extract Zeek logs from zip file
-    if zeek_logs.filename:
-        with ZipFile(f"{output_dir}/{zeek_logs.filename}", "r") as zip_file:
+    if zeek_logs_zip:
+        with ZipFile(f"{output_dir}/{zeek_logs_zip}", "r") as zip_file:
             zip_file.extractall(path=output_dir)
-            zeek_logs = os.path.join(output_dir, zeek_logs.filename[:-4])
+            zeek_logs = os.path.join(output_dir, zeek_logs_zip[:-4])
+            os.remove(os.path.join(output_dir, zeek_logs_zip))
     else:
-        zeek_logs = os.path.join(output_dir, zeek_logs.filename)
+        zeek_logs = os.path.join(output_dir, "logs")
 
     wb = get_workbook(file_name)
     services, conn_states = get_package_data()
@@ -48,7 +52,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     inventory = get_inventory_data(wb["Inventory Input"])
 
     if pcap.filename:
-        run_zeek(os.path.abspath(pcap.filename), zeek_logs, timer=timer_data)
+        run_zeek(os.path.join(output_dir, pcap.filename), zeek_logs, timer=timer_data)
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
@@ -115,4 +119,11 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_stats_sheet(wb, timer_data)
     write_conn_states_sheet(conn_states, wb)
 
-    wb.save(file_name)
+    memfile: io.BytesIO
+    with NamedTemporaryFile() as tmp:
+        wb.save(tmp.name)
+        tmp.seek(0)
+        memfile = io.BytesIO(tmp.read())
+
+    shutil.rmtree(output_dir)
+    return memfile

@@ -1,7 +1,7 @@
 import logging
 import os
 
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, request, send_file, send_from_directory
 from navv.gui.bll import generate
 
 from navv.gui.utils import get_pcap_file
@@ -56,18 +56,20 @@ def download():
     customer_name = request.form["customername"]
     filename = f"{customer_name}_network_analysis.xlsx"
 
+    # Set output directory
+    output_dir = os.path.join(os.getcwd(), "_tmp")
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
+
     # Get pcap file and Zeek logs if available
     pcap_file = request.files.get("pcapfile")
     if pcap_file.filename:
-        pcap_file.save(pcap_file.filename)
+        pcap_file.save(os.path.join(output_dir, pcap_file.filename))
+
     zeek_logs = request.files.get("zeeklogs")
-    if zeek_logs:
-        zeek_logs.save(zeek_logs.filename)
+    if zeek_logs.filename:
+        zeek_logs.save(os.path.join(output_dir, zeek_logs.filename))
 
-    generate(customer_name, os.getcwd(), pcap_file, zeek_logs)
+    memfile = generate(customer_name, output_dir, pcap_file, zeek_logs.filename)
 
-    return send_from_directory(
-        os.getcwd(),
-        filename,
-        as_attachment=True,
-    )
+    return send_file(memfile, download_name=filename, as_attachment=True)
