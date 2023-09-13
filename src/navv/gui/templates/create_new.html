@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block main %}
+<div class="px-4 mb-3 text-center">
+    <p class="mb-3">Generate a new spreadsheet. Please upload a PCAP file OR Zeek logs to
+        analyze network traffic.
+    </p>
+</div>
+<form class="px-5 mx-5 needs-validation" method="POST" action="{{ url_for('download') }}" enctype="multipart/form-data">
+    <div class="input-group-sm mb-3">
+        <div>
+            <label for="inputpcapfile">Upload PCAP</label>
+            <input accept=".pcap" type="file" class="form-control" id="inputpcapfile" name="pcapfile">
+            <div class="form-text">Upload PCAP file. (.pcap). Optional.</div>
+        </div>
+    </div>
+    <div class="input-group-sm mb-3">
+        <div>
+            <label for="inputzeeklogs">Upload Zeek logs</label>
+            <input accept=".zip" type="file" class="form-control" id="inputzeeklogs" name="zeeklogs">
+            <div class="form-text" id="basic-addon4">Upload Zip file with Zeek logs. (.zip) Optional.</div>
+        </div>
+    </div>
+    <div class="input-group-sm mb-3">
+        <div>
+            <label for="inputname">Customer Name</label>
+            <input type="text" class="form-control" id="inputname" name="customername" required>
+            <div class="form-text">Input customer's name. Required.</div>
+            <div class="valid-feedback">
+                Running... this may take awhile.
+            </div>
+        </div>
+    </div>
+    <a onclick="enableCreateButton()"><input type="submit" id="runanalysis" class="btn btn-primary btn-sm px-4"
+            value="Run Analysis" /></a>
+    <div id="createspinner" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</form>
+{% endblock %}

@@ -1,15 +1,12 @@
-"""CLI Commands."""
+import io
 import os
-import webbrowser
+import shutil
+from tempfile import NamedTemporaryFile
+from zipfile import ZipFile
 
+import openpyxl
 
-# Third-Party Libraries
-import click
-
-# cisagov Libraries
-from navv.gui.app import app
 from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
-from navv.message_handler import success_msg, warning_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
     create_analysis_array,
@@ -35,44 +32,33 @@ from navv.zeek import (
 from navv.utilities import pushd
 
 
-@click.command("generate")
-@click.option(
-    "-o",
-    "--output-dir",
-    required=False,
-    help="Directory to place resultant analysis files in. Defaults to current working directory.",
-    type=str,
-)
-@click.option(
-    "-p",
-    "--pcap",
-    required=False,
-    help="Path to pcap file. NAVV requires zeek logs or pcap. If used, zeek will run on pcap to create new logs.",
-    type=str,
-)
-@click.option(
-    "-z",
-    "--zeek-logs",
-    required=False,
-    help="Path to store or contain zeek log files. Defaults to current working directory.",
-    type=str,
-)
-@click.argument("customer_name")
-def generate(customer_name, output_dir, pcap, zeek_logs):
+def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     """Generate excel sheet."""
     with pushd(output_dir):
         pass
-    file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
 
-    wb = get_workbook(file_name)
+    if spreadsheet and spreadsheet.filename:
+        wb = openpyxl.load_workbook(os.path.join(output_dir, spreadsheet.filename))
+    else:
+        file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
+        wb = get_workbook(file_name)
+
+    # Extract Zeek logs from zip file
+    if zeek_logs_zip:
+        with ZipFile(f"{output_dir}/{zeek_logs_zip}", "r") as zip_file:
+            zip_file.extractall(path=output_dir)
+            zeek_logs = os.path.join(output_dir, zeek_logs_zip[:-4])
+            os.remove(os.path.join(output_dir, zeek_logs_zip))
+    else:
+        zeek_logs = os.path.join(output_dir, "logs")
 
     services, conn_states = get_package_data()
     timer_data = dict()
     segments = get_segments_data(wb["Segments"])
     inventory = get_inventory_data(wb["Inventory Input"])
 
-    if pcap:
-        run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
+    if pcap and pcap.filename:
+        run_zeek(os.path.join(output_dir, pcap.filename), zeek_logs, timer=timer_data)
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
@@ -119,7 +105,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_snmp_sheet(snmp_df, wb)
 
     auto_adjust_width(wb["Analysis"])
-
     times = (
         perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs, "conn.log"))
         .decode("utf-8")
@@ -140,16 +125,11 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_stats_sheet(wb, timer_data)
     write_conn_states_sheet(conn_states, wb)
 
-    wb.save(file_name)
+    memfile: io.BytesIO
+    with NamedTemporaryFile() as tmp:
+        wb.save(tmp.name)
+        tmp.seek(0)
+        memfile = io.BytesIO(tmp.read())
 
-    if pcap:
-        success_msg(f"Successfully created file: {file_name}")
-
-
-@click.command("launch")
-def launch():
-    """Launch the NAVV GUI."""
-    port = 5000
-    warning_msg("Launching GUI in browser...")
-    webbrowser.open(f"http://127.0.0.1:{port}/")
-    app.run(port=port)
+    shutil.rmtree(output_dir)
+    return memfile
