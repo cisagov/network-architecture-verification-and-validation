@@ -11,7 +11,7 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
     * [Browser](#Browser)
     * [Analysis](#Analysis)
 * [Docker](#Docker)
-* [Copyright](#Footer)
+* [Copyright](#Copyright)
 * [Contact](#Contact)
 
 [![PyPI Release](https://img.shields.io/pypi/v/navv)](https://pypi.python.org/pypi/navv/)
@@ -99,7 +99,20 @@ This will automatically launch the tool into your default browser.
 
 ![](./docs/images/navv-gui.png)
 
-### <a name="Analysis"></a>Identifying network segments and hosts
+The user will have two options:
+
+- Generate a New Analysis:
+  - Simply upload your PCAP file or a zipped file of your Zeek logs
+  - Click Run Analysis
+  - An excel sheet will be generated and downloaded via your browser
+
+- Upload an Existing Analysis
+  - Modify your generated excel spreadsheet, See [Analysis](#Analysis)
+  - Upload your spreadsheet and your zipped Zeek logs file
+
+### Analysis ###
+
+Identifying network segments and hosts
 
 Adding information about network segments and/or inventory can assist in packet capture analysis. Open the NAVV-generated `.xlsx` file and navigate to the `Segments` tab. Enter the relevant network segments and choose background colors for the corresponding cells. For example: 
 
@@ -109,11 +122,11 @@ Save your changes and re-run the NAVV tool with the `-z` option on the directory
 
 When available, the NAVV tool will use responses for queries found in Zeek's `dns.log` file to populate the `Src_Desc` and `Dest_Desc` fields in the `Analysis` tab. When DNS information is not available, it is possible to provide this information manually in the `Inventory` tab. Note that color formatting from the `Inventory` tab is applied **after** that from the `Segments` tab. Again, saving changes to the spreadsheet file and re-running the NAVV tool with the `-z` option will update the spreadsheet with the new inventory information and color formatting.
 
-## <a name="Docker"></a>Docker
+## Docker ##
 
 See [`docker/README.md`](./docker/README.md) for setup and instructions for running the NAVV tool in Docker.
 
-## <a name="Footer"></a>Copyright
+## Copyright ##
 
 [NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2023 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
@@ -124,7 +137,7 @@ Developers, by contributing to this software project, you are agreeing to the fo
 * You agree your contributions are submitted under the BSD 3-Clause license.
 * You represent you are authorized to make the contributions and grant the license. If your employer has rights to intellectual property that includes your contributions, you represent that you have received permission to make contributions and grant the required license on behalf of that employer.
 
-## Other software
+## Other software ##
 
 Idaho National Laboratory is a cutting edge research facility which is constantly producing high quality research and software. Feel free to take a look at our other software and scientific offerings at:
 
@@ -133,7 +146,9 @@ Idaho National Laboratory is a cutting edge research facility which is constantl
 * [Raw Experiment Open Source Software](https://github.com/IdahoLabResearch)
 * [Unsupported Open Source Software](https://github.com/IdahoLabCuttingBoard)
 
-## <a name="Contact"></a>Contact information of maintainer(s):
+## Contact ##
+
+Contact information of maintainer(s):
 
 [Seth Grover](mailto:seth.grover@inl.gov?subject=NAVV)
 
