@@ -22,7 +22,7 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 - This project only works on Linux or MacOS environments
 - Zeek must be installed: [Get Zeek](https://zeek.org/get-zeek/)
 - Python version 3.10 or later
-  - As installation of Python varies from platform to platform, please consult your operating system's documentation or the [python.org Wiki](https://wiki.python.org/moin/BeginnersGuide/Download) to install and configure Python on your system.
+  - As installation of Python varies from platform to platform, please refer to the [Python.org Wiki](https://wiki.python.org/moin/BeginnersGuide/Download) to install and configure Python on your system.
 
 ## Installation ##
 
@@ -33,7 +33,7 @@ If you intend to develop the NAVV tool:
   - [Install Zeek](https://zeek.org/get-zeek/)
 - Clone this repository
   - `git clone https://github.com/cisagov/network-architecture-verification-and-validation.git`
-- Setup your locally virtual environment
+- Setup your local virtual environment
   - `python3 -m venv .venv`
 - Activate your local environment
   - `source .venv/bin/activate`
