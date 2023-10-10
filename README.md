@@ -137,15 +137,6 @@ Developers, by contributing to this software project, you are agreeing to the fo
 * You agree your contributions are submitted under the BSD 3-Clause license.
 * You represent you are authorized to make the contributions and grant the license. If your employer has rights to intellectual property that includes your contributions, you represent that you have received permission to make contributions and grant the required license on behalf of that employer.
 
-## Other software ##
-
-Idaho National Laboratory is a cutting edge research facility which is constantly producing high quality research and software. Feel free to take a look at our other software and scientific offerings at:
-
-* [Primary Technology Offerings Page](https://www.inl.gov/inl-initiatives/technology-deployment)
-* [Supported Open Source Software](https://github.com/cisagov)
-* [Raw Experiment Open Source Software](https://github.com/IdahoLabResearch)
-* [Unsupported Open Source Software](https://github.com/IdahoLabCuttingBoard)
-
 ## Contact ##
 
 Contact information of maintainer(s):
