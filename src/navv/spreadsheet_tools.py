@@ -115,10 +115,6 @@ def get_segments_data(ws):
                     color=[copy(row[0].fill), copy(row[0].font)],
                 )
             )
-    # all_ips = []
-    # for segment in segments:
-    #     all_ips = all_ips + segment.network_ips
-    # segments.append(all_ips)
     return segments
 
 
