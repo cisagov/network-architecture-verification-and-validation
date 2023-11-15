@@ -99,22 +99,22 @@ def get_inventory_data(ws, **kwargs):
 
 @timeit
 def get_segments_data(ws):
-    segments = list()
+    segments = []
+    network_ip = ""
     for row in itertools.islice(ws.iter_rows(), 1, None):
         if not row[2].value:
             continue
-        segments.append(
-            data_types.Segment(
-                name=row[0].value,
-                description=row[1].value,
-                network=row[2].value,
-                color=[copy(row[0].fill), copy(row[0].font)],
+        network_ip = row[2].value
+        network_ips = [str(ip) for ip in netaddr.IPNetwork(network_ip)]
+        for ip in network_ips:
+            segments.append(
+                data_types.Segment(
+                    name=row[0].value,
+                    description=row[1].value,
+                    network=ip,
+                    color=[copy(row[0].fill), copy(row[0].font)],
+                )
             )
-        )
-    all_ips = []
-    for segment in segments:
-        all_ips = all_ips + segment.network
-    segments.append(all_ips)
     return segments
 
 
@@ -268,7 +268,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
 
     This will capture the name description and the color coding identified within the worksheet.
     """
-    #
+    segment_ips = [segment.network for segment in segments]
     if ip_to_check == str("0.0.0.0"):
         desc_to_change = (
             "Unassigned IPv4",
@@ -286,7 +286,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
         )
-    elif ip_to_check in segments[len(segments) - 1]:
+    elif ip_to_check in segment_ips:
         for segment in segments[:-1]:
             if ip_to_check not in segment.network:
                 continue
