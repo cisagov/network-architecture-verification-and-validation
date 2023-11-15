@@ -113,7 +113,7 @@ def get_segments_data(ws):
         )
     all_ips = []
     for segment in segments:
-        all_ips = all_ips + segment.network
+        all_ips.append(segment.network) if segment else None
     segments.append(all_ips)
     return segments
 
