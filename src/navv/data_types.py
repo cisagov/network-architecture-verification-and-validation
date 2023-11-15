@@ -20,11 +20,7 @@ class Segment:
     name: str
     description: str
     network: str
-    network_ips: list = field(init=False)
     color: str
-
-    def __post_init__(self):
-        self.network_ips = [str(ip) for ip in netaddr.IPNetwork(self.network)]
 
 
 @dataclass
