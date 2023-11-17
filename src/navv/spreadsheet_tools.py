@@ -269,6 +269,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
     This will capture the name description and the color coding identified within the worksheet.
     """
     segment_ips = [segment.network for segment in segments]
+    desc_to_change = ("Unknown IP Address", IPV6_CELL_COLOR)
     if ip_to_check == str("0.0.0.0"):
         desc_to_change = (
             "Unassigned IPv4",
@@ -290,9 +291,9 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         for segment in segments[:-1]:
             if ip_to_check not in segment.network:
                 continue
-            if ip_to_check in dns_data:
-                desc_to_change = (dns_data[ip_to_check], segment.color)
-            if ip_to_check in inventory:
+            elif ip_to_check in dns_data:
+                desc_to_change = (dns_data[ip_to_check] , segment.color)
+            elif ip_to_check in inventory:
                 desc_to_change = (inventory[ip_to_check].name, segment.color)
             else:
                 desc_to_change = (
@@ -310,13 +311,13 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             unk_int_IPs.add(ip_to_check)
     else:
         ext_IPs.add(ip_to_check)
+        resolution = "Unresolved external address"
         if ip_to_check in dns_data:
             resolution = dns_data[ip_to_check]
         else:
             try:
                 resolution = socket.gethostbyaddr(ip_to_check)[0]
             except socket.herror:
-                resolution = "Unresolved external address"
                 ALREADY_UNRESOLVED.append(ip_to_check)
             finally:
                 dns_data[ip_to_check] = resolution
