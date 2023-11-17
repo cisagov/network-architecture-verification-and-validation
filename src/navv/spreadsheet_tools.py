@@ -264,9 +264,12 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         * DHCP Broadcasting
         * Multicast
         * Within Segments identified
-        * Within Inventory, not within an Identified Segment
+            * Resolution by DNS, then Inventory, and then Unknown
+            * Appends name if External IP
         * Private Network
+            * Resolution by DNS, Inventory, then Unknown
         * External (Public IP space) or Internet
+            * Resolution by DNS, Unknown
 
     This will capture the name description and the color coding identified within the worksheet.
     """
@@ -305,10 +308,6 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
                     resolution,
                     segments[x].color,
                     )
-
-    # elif ip_to_check in inventory:
-    #     desc_to_change = (inventory[ip_to_check].name, inventory[ip_to_check].color)
-
     elif netaddr.IPAddress(ip_to_check).is_private():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
