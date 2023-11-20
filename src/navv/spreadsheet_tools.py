@@ -93,28 +93,30 @@ def get_inventory_data(ws, **kwargs):
             ip=row[0].value,
             name=row[1].value,
             color=(copy(row[0].fill), copy(row[0].font)),
+            mac_address="",
+            vendor=""
         )
     return inventory
 
 
 @timeit
 def get_segments_data(ws):
-    segments = list()
+    segments = []
+    network_ip = ""
     for row in itertools.islice(ws.iter_rows(), 1, None):
         if not row[2].value:
             continue
-        segments.append(
-            data_types.Segment(
-                name=row[0].value,
-                description=row[1].value,
-                network=row[2].value,
-                color=[copy(row[0].fill), copy(row[0].font)],
+        network_ip = row[2].value
+        network_ips = [str(ip) for ip in netaddr.IPNetwork(network_ip)]
+        for ip in network_ips:
+            segments.append(
+                data_types.Segment(
+                    name=row[0].value,
+                    description=row[1].value,
+                    network=ip,
+                    color=[copy(row[0].fill), copy(row[0].font)],
+                )
             )
-        )
-    all_ips = []
-    for segment in segments:
-        all_ips = all_ips + segment.network
-    segments.append(all_ips)
     return segments
 
 
@@ -262,13 +264,17 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         * DHCP Broadcasting
         * Multicast
         * Within Segments identified
-        * Within Inventory, not within an Identified Segment
+            * Resolution by DNS, then Inventory, and then Unknown
+            * Appends name if External IP
         * Private Network
+            * Resolution by DNS, Inventory, then Unknown
         * External (Public IP space) or Internet
+            * Resolution by DNS, Unknown
 
     This will capture the name description and the color coding identified within the worksheet.
     """
-    #
+    segment_ips = [segment.network for segment in segments]
+    desc_to_change = ("Not Triggered IP", IPV6_CELL_COLOR)
     if ip_to_check == str("0.0.0.0"):
         desc_to_change = (
             "Unassigned IPv4",
@@ -286,25 +292,27 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
         )
-    elif ip_to_check in segments[len(segments) - 1]:
-        for segment in segments[:-1]:
-            if ip_to_check not in segment.network:
-                continue
-            if ip_to_check in dns_data:
-                desc_to_change = (dns_data[ip_to_check], segment.color)
-            if ip_to_check in inventory:
-                desc_to_change = (inventory[ip_to_check].name, segment.color)
-            else:
+    elif ip_to_check in segment_ips:
+        for x in range(0, len(segments[:-1])):
+            if segments[x].network == ip_to_check:
+                if ip_to_check in dns_data:
+                    resolution = dns_data[ip_to_check].name
+                elif ip_to_check in inventory:
+                    resolution = inventory[ip_to_check].name
+                else:
+                    resolution = f"Unknown device in {segments[x].name} network"
+                    unk_int_IPs.add(ip_to_check)
+                if not netaddr.IPAddress(ip_to_check).is_private():
+                    resolution = resolution + " {Non-Priv IP}"
                 desc_to_change = (
-                    f"Unknown device in {segment.name} network",
-                    segment.color,
-                )
-                unk_int_IPs.add(ip_to_check)
-    elif ip_to_check in inventory:
-        desc_to_change = (inventory[ip_to_check].name, inventory[ip_to_check].color)
+                    resolution,
+                    segments[x].color,
+                    )
     elif netaddr.IPAddress(ip_to_check).is_private():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
+        elif ip_to_check in inventory:
+            desc_to_change = (inventory[ip_to_check].name, INTERNAL_NETWORK_CELL_COLOR)
         else:
             desc_to_change = ("Unknown Internal address", INTERNAL_NETWORK_CELL_COLOR)
             unk_int_IPs.add(ip_to_check)
@@ -312,14 +320,15 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         ext_IPs.add(ip_to_check)
         if ip_to_check in dns_data:
             resolution = dns_data[ip_to_check]
+        elif ip_to_check in inventory:
+            resolution = inventory[ip_to_check].name + " {Non-Priv IP}"
         else:
             try:
                 resolution = socket.gethostbyaddr(ip_to_check)[0]
             except socket.herror:
-                resolution = "Unresolved external address"
                 ALREADY_UNRESOLVED.append(ip_to_check)
             finally:
-                dns_data[ip_to_check] = resolution
+                resolution = "Unresolved external address"
         desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR)
     return desc_to_change
 
