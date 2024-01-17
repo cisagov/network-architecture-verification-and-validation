@@ -296,7 +296,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         for x in range(0, len(segments[:-1])):
             if segments[x].network == ip_to_check:
                 if ip_to_check in dns_data:
-                    resolution = dns_data[ip_to_check].name
+                    resolution = dns_data[ip_to_check]
                 elif ip_to_check in inventory:
                     resolution = inventory[ip_to_check].name
                 else:
