@@ -302,13 +302,13 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
                 else:
                     resolution = f"Unknown device in {segments[x].name} network"
                     unk_int_IPs.add(ip_to_check)
-                if not netaddr.IPAddress(ip_to_check).is_private():
+                if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
                     resolution = resolution + " {Non-Priv IP}"
                 desc_to_change = (
                     resolution,
                     segments[x].color,
                     )
-    elif netaddr.IPAddress(ip_to_check).is_private():
+    elif netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
         elif ip_to_check in inventory:
