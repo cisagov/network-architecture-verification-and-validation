@@ -8,7 +8,7 @@ import click
 
 # cisagov Libraries
 from navv.gui.app import app
-from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
+from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df, get_mac_df
 from navv.message_handler import success_msg, warning_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
@@ -24,6 +24,7 @@ from navv.spreadsheet_tools import (
     write_snmp_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
+    write_mac_sheet,
 )
 from navv.zeek import (
     get_conn_data,
@@ -90,6 +91,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
 
     # Get inventory report dataframe
     inventory_df = get_inventory_report_df(zeek_df)
+    mac_df = get_mac_df(zeek_df)
 
     # Turn zeekcut data into rows for spreadsheet
     rows = create_analysis_array(zeek_data, timer=timer_data)
@@ -117,6 +119,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_unknown_internals_sheet(unk_int_IPs, wb)
 
     write_snmp_sheet(snmp_df, wb)
+
+    write_mac_sheet(mac_df, wb)
 
     auto_adjust_width(wb["Analysis"])
 

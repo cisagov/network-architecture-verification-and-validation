@@ -14,6 +14,7 @@ import string
 
 import openpyxl
 import openpyxl.styles
+from openpyxl.styles import Alignment
 from openpyxl.worksheet.table import Table
 import netaddr
 from tqdm import tqdm
@@ -470,6 +471,31 @@ def write_stats_sheet(wb, stats):
         stats_sheet[f"{string.ascii_uppercase[col_index]}2"].value = stats[stat]
     auto_adjust_width(stats_sheet)
 
+def write_mac_sheet(mac_df, wb):
+    """Fill spreadsheet with MAC address -> IP address translation with manufacturer information"""
+    sheet = make_sheet(wb, "MAC", idx=4)
+    sheet.append(
+        ["MAC", "Manufacturer", "IPs"]
+    )
+    for index, row in enumerate(mac_df.to_dict(orient="records"), start=2):
+        # Source MAC column
+        sheet[f"A{index}"].value = row["mac"]
+
+        # Source Manufacturer column
+        sheet[f"B{index}"].value = row["vendor"]
+
+        # Source IPs
+        sheet[f"C{index}"].value = row["associated_ip"]
+        if len(row["associated_ip"]) > 16:
+            sel_cell = sheet[f"C{index}"]
+            sel_cell.alignment = Alignment(wrap_text=True)
+            est_row_hght = int(len(row["associated_ip"])/50)
+            if est_row_hght < 1:
+                est_row_hght = 1
+            sheet.row_dimensions[index].height = est_row_hght * 15
+
+    auto_adjust_width(sheet)
+    sheet.column_dimensions["C"].width = 39 * 1.2
 
 def make_sheet(wb, sheet_name, idx=None):
     """Create the sheet if it doesn't already exist otherwise remove it and recreate it"""
