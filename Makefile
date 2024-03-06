@@ -9,11 +9,11 @@ help:
 
 # target: install-develop - Install application for development
 install-develop:
-	pip install -e .
+	python3 -m pip install -e .
 
 # target: install - Install production application
 install:
-	pip install navv
+	python3 -m pip install navv
 
 # target: generate - Generate analysis excel sheet
 # optionally set PCAP_PATH to a relative pcap file path

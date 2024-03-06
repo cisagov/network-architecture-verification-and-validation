@@ -149,7 +149,7 @@ python3 -m pip install --upgrade pip setuptools wheel
 # Find a requirements file (if possible) and install
 for req_file in "requirements-dev.txt" "requirements-test.txt" "requirements.txt"; do
   if [[ -f $req_file ]]; then
-    pip install --requirement $req_file
+    python3 -m pip install --requirement $req_file
     break
   fi
 done

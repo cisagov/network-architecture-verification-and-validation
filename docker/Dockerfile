@@ -1,6 +1,6 @@
-FROM ubuntu:kinetic
+FROM ubuntu:jammy
 
-# Copyright 2023 Battelle Energy Alliance, LLC
+# Copyright 2024 Battelle Energy Alliance, LLC
 
 LABEL maintainer="seth.grover@inl.gov"
 LABEL org.opencontainers.image.authors='seth.grover@inl.gov'
@@ -68,6 +68,8 @@ RUN groupadd --gid ${DEFAULT_GID} ${PUSER} && \
     mkdir -p /home/${PUSER} /dist && \
     chown ${DEFAULT_UID}:${DEFAULT_GID} /home/${PUSER} /dist && \
     chmod 755 /home/${PUSER} /dist
+
+EXPOSE 5000
 
 # entrypoint to drop privileges to non-privileged user and run navv
 ENTRYPOINT [ "/usr/local/bin/docker-uid-gid-setup.sh", "/usr/bin/python3", "-m", "navv" ]

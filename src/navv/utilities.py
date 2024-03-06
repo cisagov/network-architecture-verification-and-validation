@@ -15,7 +15,9 @@ from navv.validators import is_mac_address
 @contextlib.contextmanager
 def pushd(new_dir):
     previous_dir = os.getcwd()
-    if not os.path.isdir(new_dir):
+    if not new_dir:
+        new_dir = previous_dir
+    elif not os.path.isdir(new_dir):
         os.makedirs(new_dir)
     os.chdir(new_dir)
     try:
