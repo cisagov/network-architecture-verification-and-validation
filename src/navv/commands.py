@@ -43,6 +43,7 @@ from navv.utilities import pushd
     required=False,
     help="Directory to place resultant analysis files in. Defaults to current working directory.",
     type=str,
+    default=os.getcwd(),
 )
 @click.option(
     "-p",
@@ -57,6 +58,7 @@ from navv.utilities import pushd
     required=False,
     help="Path to store or contain zeek log files. Defaults to current working directory.",
     type=str,
+    default=os.getcwd(),
 )
 @click.argument("customer_name")
 def generate(customer_name, output_dir, pcap, zeek_logs):

@@ -38,7 +38,7 @@ If you intend to develop the NAVV tool:
 - Activate your local environment
   - `source .venv/bin/activate`
 - Install the project and its dependencies to your local virtual environment
-  - `pip install -e .`
+  - `python3 -m pip install -e .`
 
 ### Production ###
 
@@ -48,9 +48,9 @@ If you would like to use the NAVV tool, its recommended you install it from PYPI
 - Install the project using `pip`
   - The recommended method for installing packages with `pip` is using [User Installs](https://pip.pypa.io/en/stable/user_guide/#user-installs) which installs to a user-specific location rather than system-wide.
   - install the latest version of NAVV
-    - `pip install -U navv`
+    - `python3 -m pip install -U navv`
   - or install a specific version of NAVV
-    - example:  `pip install -U navv==3.0.1`
+    - example:  `python3 -m pip install -U navv==3.0.1`
 
 Verify the NAVV tool has been installed by running `navv` in your console:
 
@@ -128,7 +128,7 @@ See [`docker/README.md`](./docker/README.md) for setup and instructions for runn
 
 ## Copyright ##
 
-[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2023 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
+[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2024 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
 See [`LICENSE`](./LICENSE) for the terms of its release.
 
@@ -136,15 +136,6 @@ Developers, by contributing to this software project, you are agreeing to the fo
 
 * You agree your contributions are submitted under the BSD 3-Clause license.
 * You represent you are authorized to make the contributions and grant the license. If your employer has rights to intellectual property that includes your contributions, you represent that you have received permission to make contributions and grant the required license on behalf of that employer.
-
-## Other software ##
-
-Idaho National Laboratory is a cutting edge research facility which is constantly producing high quality research and software. Feel free to take a look at our other software and scientific offerings at:
-
-* [Primary Technology Offerings Page](https://www.inl.gov/inl-initiatives/technology-deployment)
-* [Supported Open Source Software](https://github.com/cisagov)
-* [Raw Experiment Open Source Software](https://github.com/IdahoLabResearch)
-* [Unsupported Open Source Software](https://github.com/IdahoLabCuttingBoard)
 
 ## Contact ##
 
