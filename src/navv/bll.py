@@ -159,3 +159,46 @@ def get_snmp_df(zeek_data: list):
             "community",
         ],
     )
+
+@timeit
+def get_mac_df(zeek_df: pd.DataFrame):
+    smac_df = zeek_df[
+        [
+            "src_mac",
+            "src_ip",
+        ]
+    ].reset_index(drop=True)
+
+    dmac_df = zeek_df[
+        [
+            "dst_mac",
+            "dst_ip",
+        ]
+    ].reset_index(drop=True)
+
+    smac_df = smac_df.rename(columns={'src_mac': 'mac', 'src_ip': 'ip'})
+    dmac_df = dmac_df.rename(columns={'dst_mac': 'mac', 'dst_ip': 'ip'})
+    mac_df = smac_df._append(dmac_df, ignore_index=True)
+    mac_df = mac_df.groupby('mac')['ip'].apply(list).reset_index(name='associated_ip')
+
+    for index, row in enumerate(mac_df.to_dict(orient="records"), start=0):
+        # Source IPs - Need to get unique values
+        ips = set(row["associated_ip"])
+        list_ips = (list(ips))
+        if len(list_ips) > 1:
+            ip_list = ', '.join([str(item) for item in list_ips])
+
+        else:
+            ip_list = list_ips[0]
+
+        mac_df.at[index, 'associated_ip'] = ip_list
+
+    # Source Manufacturer column
+    mac_vendors = {}
+    with open(MAC_VENDORS_JSON_FILE) as f:
+        mac_vendors = json.load(f)
+    mac_df["vendor"] = mac_df["mac"].apply(
+        lambda mac: get_mac_vendor(mac_vendors, mac)
+    )
+
+    return mac_df
