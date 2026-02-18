@@ -1,6 +1,7 @@
 """CLI Commands."""
 import os
 import webbrowser
+import json
 
 
 # Third-Party Libraries
@@ -34,6 +35,7 @@ from navv.zeek import (
     perform_zeekcut,
 )
 from navv.utilities import pushd
+from navv.geolocation import Geolocator
 
 
 @click.command("generate")
@@ -58,14 +60,24 @@ from navv.utilities import pushd
     help="Path to store or contain zeek log files. Defaults to current working directory.",
     type=str,
 )
+@click.option(
+    "-g",
+    "--geoip-db",
+    required=False,
+    help="Path to GeoLite2 Country database file (MMDB format). If not specified, searches common locations.",
+    type=str,
+)
 @click.argument("customer_name")
-def generate(customer_name, output_dir, pcap, zeek_logs):
+def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     """Generate excel sheet."""
     with pushd(output_dir):
         pass
     file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
 
     wb = get_workbook(file_name)
+
+    # Initialize geolocator for IP geolocation
+    geolocator = Geolocator(db_path=geoip_db)
 
     services, conn_states = get_package_data()
     timer_data = dict()
@@ -84,6 +96,17 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
 
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
+    
+    # Get external DNS cache (similar to dns_data pattern)
+    ext_dns_path = os.path.join(output_dir, f"{customer_name}_ext_dns_cache.json")
+    if os.path.exists(ext_dns_path):
+        with open(ext_dns_path, "r") as f:
+            try:
+                ext_dns_cache = json.load(f)
+            except:
+                ext_dns_cache = {}
+    else:
+        ext_dns_cache = {}
 
     # Get zeek dataframes
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
@@ -109,12 +132,14 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
         json_path,
         ext_IPs,
         unk_int_IPs,
+        geolocator=geolocator,
+        ext_dns_cache=ext_dns_cache,
         timer=timer_data,
     )
 
     write_inventory_report_sheet(inventory_df, wb)
 
-    write_externals_sheet(ext_IPs, wb)
+    write_externals_sheet(ext_IPs, wb, geolocator=geolocator)
 
     write_unknown_internals_sheet(unk_int_IPs, wb)
 
@@ -145,6 +170,13 @@ def generate(customer_name, output_dir, pcap, zeek_logs):
     write_conn_states_sheet(conn_states, wb)
 
     wb.save(file_name)
+    
+    # Save external DNS cache for future runs
+    with open(ext_dns_path, "w") as f:
+        json.dump(ext_dns_cache, f)
+    
+    # Close geolocator to free resources
+    geolocator.close()
 
     if pcap:
         success_msg(f"Successfully created file: {file_name}")

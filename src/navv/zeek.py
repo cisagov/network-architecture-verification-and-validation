@@ -33,7 +33,10 @@ def get_dns_data(customer_name, output_dir, zeek_logs):
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
     if os.path.exists(json_path):
         with open(json_path, "rb") as json_file:
-            return json.load(json_file)
+            try:
+                return json.load(json_file)
+            except:
+                pass
 
     dns_data = perform_zeekcut(
         fields=["query", "answers", "qtype", "rcode_name"],

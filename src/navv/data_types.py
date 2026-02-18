@@ -34,6 +34,8 @@ class AnalysisRowItem:
     service: str = ""
     dest_desc: str = ""
     src_desc: str = ""
+    src_geo: str = ""  # Added for geolocation
+    dst_geo: str = ""  # Added for geolocation
     notes: str = ""
 
 
