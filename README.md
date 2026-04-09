@@ -23,6 +23,8 @@ The **NAVV** (**N**etwork **A**rchitecture **V**erification and **V**alidation) 
 - Zeek must be installed: [Get Zeek](https://zeek.org/get-zeek/)
 - Python version 3.10 or later
   - As installation of Python varies from platform to platform, please refer to the [Python.org Wiki](https://wiki.python.org/moin/BeginnersGuide/Download) to install and configure Python on your system.
+- Optional: MaxMind GeoLite2 Country database for geolocation features
+  - Download from [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
 
 ## Installation ##
 
@@ -88,6 +90,8 @@ Options:
                          If used, zeek will run on pcap to create new logs.
   -z, --zeek-logs TEXT   Path to store or contain zeek log files. Defaults to
                          current working directory.
+  -g, --geoip-db TEXT    Path to GeoLite2 Country database file (MMDB format).
+                         If not specified, searches common locations.
   -h, --help             Show this message and exit.
 ```
 

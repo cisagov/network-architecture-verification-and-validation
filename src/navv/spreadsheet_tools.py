@@ -21,7 +21,8 @@ from tqdm import tqdm
 
 from navv import data_types
 from navv.utilities import timeit
-from navv.message_handler import warning_msg
+from navv.message_handler import warning_msg, info_msg
+from navv.geolocation import Geolocator
 
 
 DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
@@ -29,8 +30,10 @@ COL_NAMES = [
     "Count",
     "Src_IP",
     "Src_Desc",
+    "Src_Geo",
     "Dest_IP",
     "Dest_Desc",
+    "Dst_Geo",
     "Port",
     "Service",
     "Proto",
@@ -64,7 +67,7 @@ UNKNOWN_EXTERNAL_CELL_COLOR = (
 )
 ALREADY_UNRESOLVED = list()
 
-
+@timeit
 def get_workbook(file_name):
     """Create the blank Inventory and Segment sheets for data input into the tool"""
     if os.path.isfile(file_name):
@@ -128,6 +131,58 @@ def get_package_data():
     return services, conn_states
 
 
+def read_existing_notes(wb):
+    """Read existing notes from the Analysis sheet if it exists.
+    
+    Returns a dictionary keyed by a tuple of (src_ip, dest_ip, port, proto, conn_state)
+    with the note as the value.
+    """
+    notes_dict = {}
+    
+    if "Analysis" not in wb.sheetnames:
+        return notes_dict
+    
+    sheet = wb["Analysis"]
+    
+    # Check if sheet has data (more than just header row)
+    if sheet.max_row <= 1:
+        return notes_dict
+    
+    info_msg("Reading existing notes from Analysis sheet...")
+    
+    # Iterate through rows starting from row 2 (skip header)
+    for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
+        try:
+            # Extract key fields: Src_IP (col 2), Dest_IP (col 5), Port (col 8), Proto (col 10), Conn_State (col 11)
+            src_ip = row[1].value  # Column B (index 1)
+            dest_ip = row[4].value  # Column E (index 4)
+            port = row[7].value  # Column H (index 7)
+            proto = row[9].value  # Column J (index 9)
+            conn_state = row[10].value  # Column K (index 10)
+            note = row[11].value  # Column L (index 11) - Notes
+            
+            # Only store if we have valid key data and a non-empty note
+            if src_ip and dest_ip and port is not None and proto and conn_state:
+                # Convert port to int for consistency
+                try:
+                    port = int(port)
+                except (ValueError, TypeError):
+                    continue
+                
+                # Create key tuple
+                key = (str(src_ip), str(dest_ip), port, str(proto), str(conn_state))
+                
+                # Store note if it's not None or empty
+                if note:
+                    notes_dict[key] = str(note)
+        except (IndexError, AttributeError):
+            # Skip malformed rows
+            continue
+    
+    info_msg(f"Found {len(notes_dict)} existing notes")
+    return notes_dict
+
+
 @timeit
 def create_analysis_array(sort_input, **kwargs):
     arr = []
@@ -168,16 +223,23 @@ def perform_analysis(
     json_path,
     ext_IPs,
     unk_int_IPs,
+    geolocator=None,
+    ext_dns_cache=None,
     **kwargs,
 ):
+    # Read existing notes before creating new sheet
+    existing_notes = read_existing_notes(wb)
+    
     sheet = make_sheet(wb, "Analysis", idx=0)
     sheet.append(
         [
             "Count",
             "Src_IP",
             "Src_Desc",
+            "Src_Geo",
             "Dest_IP",
             "Dest_Desc",
+            "Dst_Geo",
             "Port",
             "Service",
             "Proto",
@@ -185,19 +247,57 @@ def perform_analysis(
             "Notes",
         ]
     )
+    
+    # Initialize external DNS cache if not provided
+    if ext_dns_cache is None:
+        ext_dns_cache = {}
+    
+    # Convert segments list to dict for O(1) lookup (optimization)
+    segment_dict = {seg.network: seg for seg in segments}
+    
+    # Create IP result cache (optimization)
+    ip_result_cache = {}
+    
     warning_msg("this may take awhile...")
     for row_index, row in enumerate(tqdm(rows), start=2):
-        row.src_desc = handle_ip(
-            row.src_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs
-        )
-        row.dest_desc = handle_ip(
-            row.dest_ip, dns_data, inventory, segments, ext_IPs, unk_int_IPs
-        )
+        # Use IP result cache to avoid re-processing same IPs
+        if row.src_ip not in ip_result_cache:
+            ip_result_cache[row.src_ip] = handle_ip(
+                row.src_ip, dns_data, inventory, segment_dict, ext_IPs, unk_int_IPs, ext_dns_cache
+            )
+        row.src_desc = ip_result_cache[row.src_ip]
+        
+        if row.dest_ip not in ip_result_cache:
+            ip_result_cache[row.dest_ip] = handle_ip(
+                row.dest_ip, dns_data, inventory, segment_dict, ext_IPs, unk_int_IPs, ext_dns_cache
+            )
+        row.dest_desc = ip_result_cache[row.dest_ip]
+        
+        # Add geolocation lookup for external IPs only
+        if geolocator and geolocator.enabled:
+            row.src_geo = "" if geolocator.is_internal_ip(row.src_ip) else (geolocator.lookup(row.src_ip) or "")
+            row.dst_geo = "" if geolocator.is_internal_ip(row.dest_ip) else (geolocator.lookup(row.dest_ip) or "")
+        else:
+            row.src_geo = ""
+            row.dst_geo = ""
+        
         handle_service(row, services)
         row.conn = (row.conn, conn_states[row.conn])
+        
+        # Lookup existing note for this row
+        # Key: (src_ip, dest_ip, port, proto, conn_state)
+        note_key = (row.src_ip, row.dest_ip, int(row.port), row.proto, row.conn[0])
+        row.notes = existing_notes.get(note_key, "")
+        
         write_row_to_sheet(row, row_index, sheet)
-    tab = Table(displayName="AnalysisTable", ref=f"A1:J{len(rows)+1}")
+    
+    tab = Table(displayName="AnalysisTable", ref=f"A1:L{len(rows)+1}")
     sheet.add_table(tab)
+
+    # Hide geolocation columns by default (users can unhide in Excel)
+    sheet.column_dimensions['D'].hidden = True  # Src_Geo
+    sheet.column_dimensions['G'].hidden = True  # Dst_Geo
+
     # write lookup data to json file for future use
     with open(json_path, "w+") as fp:
         json.dump(dns_data, fp)
@@ -214,28 +314,38 @@ def write_row_to_sheet(row, row_index, sheet):
     src_Desc.fill = row.src_desc[1][0]
     src_Desc.font = row.src_desc[1][1]
 
-    dest_IP = sheet.cell(row=row_index, column=4, value=row.dest_ip)
+    # Add Src_Geo column
+    src_Geo = sheet.cell(row=row_index, column=4, value=row.src_geo)
+    src_Geo.fill = row.src_desc[1][0]
+    src_Geo.font = row.src_desc[1][1]
+
+    dest_IP = sheet.cell(row=row_index, column=5, value=row.dest_ip)
     dest_IP.fill = row.dest_desc[1][0]
     dest_IP.font = row.dest_desc[1][1]
 
-    dest_Desc = sheet.cell(row=row_index, column=5, value=row.dest_desc[0])
+    dest_Desc = sheet.cell(row=row_index, column=6, value=row.dest_desc[0])
     dest_Desc.fill = row.dest_desc[1][0]
     dest_Desc.font = row.dest_desc[1][1]
 
-    sheet.cell(row=row_index, column=6, value=int(row.port))
+    # Add Dst_Geo column
+    dst_Geo = sheet.cell(row=row_index, column=7, value=row.dst_geo)
+    dst_Geo.fill = row.dest_desc[1][0]
+    dst_Geo.font = row.dest_desc[1][1]
 
-    service = sheet.cell(row=row_index, column=7, value=row.service[0])
+    sheet.cell(row=row_index, column=8, value=int(row.port))
+
+    service = sheet.cell(row=row_index, column=9, value=row.service[0])
     service.fill = row.service[1][0]
     service.font = row.service[1][1]
 
-    sheet.cell(row=row_index, column=8, value=row.proto)
+    sheet.cell(row=row_index, column=10, value=row.proto)
 
-    conn_State = sheet.cell(row=row_index, column=9, value=row.conn[0])
+    conn_State = sheet.cell(row=row_index, column=11, value=row.conn[0])
     conn_State.fill = row.conn[1][0]
     conn_State.font = row.conn[1][1]
 
-    # placeholder for notes cell
-    sheet.cell(row=row_index, column=10, value="")
+    # Write the note (either existing or empty string)
+    sheet.cell(row=row_index, column=12, value=row.notes)
 
 
 def handle_service(row, services):
@@ -258,7 +368,7 @@ def handle_service(row, services):
             row.service = ("unknown service", UNKNOWN_EXTERNAL_CELL_COLOR)
 
 
-def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
+def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_IPs, ext_dns_cache=None):
     """Function take IP Address and uses collected dns_data, inventory, and segment information to give IP Addresses in analysis context.
 
     Priority flow:
@@ -270,11 +380,13 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         * Private Network
             * Resolution by DNS, Inventory, then Unknown
         * External (Public IP space) or Internet
-            * Resolution by DNS, Unknown
+            * Resolution by DNS, cached external DNS lookup, then socket lookup
 
     This will capture the name description and the color coding identified within the worksheet.
     """
-    segment_ips = [segment.network for segment in segments]
+    if ext_dns_cache is None:
+        ext_dns_cache = {}
+    
     desc_to_change = ("Not Triggered IP", IPV6_CELL_COLOR)
     if ip_to_check == str("0.0.0.0"):
         desc_to_change = (
@@ -290,25 +402,32 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
         netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast()
     ):
         desc_to_change = (
-            f"{'IPV6' if netaddr.valid_ipv6(ip_to_check) else 'IPV4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
+            f"{'IPv6' if netaddr.valid_ipv6(ip_to_check) else 'IPv4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
         )
-    elif ip_to_check in segment_ips:
-        for x in range(0, len(segments[:-1])):
-            if segments[x].network == ip_to_check:
-                if ip_to_check in dns_data:
-                    resolution = dns_data[ip_to_check]
-                elif ip_to_check in inventory:
-                    resolution = inventory[ip_to_check].name
-                else:
-                    resolution = f"Unknown device in {segments[x].name} network"
-                    unk_int_IPs.add(ip_to_check)
-                if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
-                    resolution = resolution + " {Non-Priv IP}"
-                desc_to_change = (
-                    resolution,
-                    segments[x].color,
-                    )
+    elif (
+        netaddr.IPAddress(ip_to_check).is_link_local()
+    ):
+        desc_to_change = (
+            f"{'IPv6' if netaddr.valid_ipv6(ip_to_check) else 'IPv4'}{'_Link-local' if netaddr.IPAddress(ip_to_check).is_link_local() else ''}",
+            IPV6_CELL_COLOR,
+        )
+    elif ip_to_check in segment_dict:
+        # O(1) dict lookup
+        segment = segment_dict[ip_to_check]
+        if ip_to_check in dns_data:
+            resolution = dns_data[ip_to_check]
+        elif ip_to_check in inventory:
+            resolution = inventory[ip_to_check].name
+        else:
+            resolution = f"Unknown device in {segment.name} network"
+            unk_int_IPs.add(ip_to_check)
+        if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
+            resolution = resolution + " {Non-Priv IP}"
+        desc_to_change = (
+            resolution,
+            segment.color,
+        )
     elif netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
         if ip_to_check in dns_data:
             desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
@@ -319,17 +438,28 @@ def handle_ip(ip_to_check, dns_data, inventory, segments, ext_IPs, unk_int_IPs):
             unk_int_IPs.add(ip_to_check)
     else:
         ext_IPs.add(ip_to_check)
+        # Default resolution for external IPs
+        resolution = "Unresolved external address"
+        
+        # Priority: dns_data > inventory > ext_dns_cache > socket lookup
         if ip_to_check in dns_data:
             resolution = dns_data[ip_to_check]
         elif ip_to_check in inventory:
             resolution = inventory[ip_to_check].name + " {Non-Priv IP}"
+        elif ip_to_check in ext_dns_cache:
+            # Use cached external DNS lookup
+            resolution = ext_dns_cache[ip_to_check]
         else:
+            # Perform reverse DNS lookup and cache the result
             try:
                 resolution = socket.gethostbyaddr(ip_to_check)[0]
+                # Cache successful lookup
+                ext_dns_cache[ip_to_check] = resolution
             except socket.herror:
+                # Cache the failure too so we don't retry
+                ext_dns_cache[ip_to_check] = "Unresolved external address"
                 ALREADY_UNRESOLVED.append(ip_to_check)
-            finally:
-                resolution = "Unresolved external address"
+        
         desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR)
     return desc_to_change
 
@@ -446,14 +576,25 @@ def write_snmp_sheet(snmp_df, wb):
     auto_adjust_width(sheet, 40)
 
 
-def write_externals_sheet(IPs, wb):
+def write_externals_sheet(IPs, wb, geolocator=None):
     ext_sheet = make_sheet(wb, "Externals", idx=5)
-    ext_sheet.append(["External IP"])
+    ext_sheet.append(["External IP", "Geolocation"])
     for row_index, IP in enumerate(sorted(IPs), start=2):
+        # External IP column
         cell = ext_sheet[f"A{row_index}"]
         cell.value = IP
-        if row_index % 2 == 0:
-            cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
+        
+        # Geolocation column
+        geo_cell = ext_sheet[f"B{row_index}"]
+        if geolocator and geolocator.enabled:
+            geo_cell.value = geolocator.lookup(IP) or ""
+        else:
+            geo_cell.value = ""
+    
+    # Add AutoFilter to columns A and B
+    if len(IPs) > 0:
+        ext_sheet.auto_filter.ref = f"A1:B{len(IPs)+1}"
+
     auto_adjust_width(ext_sheet)
 
 
