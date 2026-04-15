@@ -5,8 +5,7 @@ from tempfile import NamedTemporaryFile
 from zipfile import ZipFile
 
 import openpyxl
-
-from navv.bll import get_inventory_report_df, get_snmp_df, get_zeek_df
+from navv.bll import get_snmp_df, get_zeek_df
 from navv.spreadsheet_tools import (
     auto_adjust_width,
     create_analysis_array,
@@ -17,7 +16,6 @@ from navv.spreadsheet_tools import (
     perform_analysis,
     write_conn_states_sheet,
     write_externals_sheet,
-    write_inventory_report_sheet,
     write_snmp_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
@@ -74,9 +72,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
     snmp_df = get_snmp_df(snmp_data)
 
-    # Get inventory report dataframe
-    inventory_df = get_inventory_report_df(zeek_df)
-
     # Turn zeekcut data into rows for spreadsheet
     rows = create_analysis_array(zeek_data, timer=timer_data)
 
@@ -95,8 +90,6 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
         unk_int_IPs,
         timer=timer_data,
     )
-
-    write_inventory_report_sheet(inventory_df, wb)
 
     write_externals_sheet(ext_IPs, wb)
 

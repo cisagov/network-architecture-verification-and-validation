@@ -483,63 +483,7 @@ def write_conn_states_sheet(conn_states, wb):
     auto_adjust_width(new_ws, 100)
 
 
-def write_inventory_report_sheet(inventory_df, wb):
-    """Get Mac Addresses with their associated IP addresses and manufacturer."""
-    ir_sheet = make_sheet(wb, "Inventory Report", idx=4)
-    ir_sheet.append(["MAC", "Vendor", "Hostname", "IPv4", "IPv6", "Port and Proto"])
 
-    inventory_data = inventory_df.to_dict(orient="records")
-    for index, row in enumerate(inventory_data, start=2):
-        # Mac column
-        ir_sheet[f"A{index}"].value = row["mac"]
-
-        # Vendor column
-        ir_sheet[f"B{index}"].value = row["vendor"]
-
-        # Hostname column
-        hostname_column = ir_sheet[f"C{index}"]
-        hostname_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
-
-        hostname = ""
-        if row["hostname"]:
-            hostname = ", ".join(each for each in row["hostname"] if each)
-        hostname_column.value = hostname
-
-        # IPv4 Address column
-        ipv4_column = ir_sheet[f"D{index}"]
-        ipv4_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
-
-        ipv4 = ""
-        if row["ipv4"]:
-            ipv4 = ", ".join(each for each in row["ipv4"] if each)
-        ipv4_column.value = ipv4
-
-        # IPv6 Address column
-        ipv6_column = ir_sheet[f"E{index}"]
-        ipv6_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
-
-        ipv6 = ""
-        if row["ipv6"]:
-            ipv6 = ", ".join(each for each in row["ipv6"] if each)
-        ipv6_column.value = ipv6
-
-        # Port and Protocol column
-        pnp_column = ir_sheet[f"F{index}"]
-        pnp_column.alignment = openpyxl.styles.Alignment(wrap_text=True)
-
-        port_and_proto = ""
-        if row["port_and_proto"]:
-            port_and_proto = ", ".join(
-                list(set(each for each in row["port_and_proto"] if each))[:10]
-            )
-
-        pnp_column.value = port_and_proto
-
-        # Add styling to every other row
-        if index % 2 == 0:
-            for cell in ir_sheet[f"{index}:{index}"]:
-                cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
-    auto_adjust_width(ir_sheet, 40)
 
 
 def write_snmp_sheet(snmp_df, wb):
