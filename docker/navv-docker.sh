@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2023 Battelle Energy Alliance, LLC
+# Copyright 2024 Battelle Energy Alliance, LLC
 
 # navv_docker.sh
 #
@@ -186,6 +186,7 @@ $CONTAINER_ENGINE run --rm \
   -w /output \
   "${MOUNT_ARGS[@]}" \
   "$NAVV_DOCKER_IMAGE" \
+  generate \
   "${IN_ARGS[@]}" \
   "${OUT_ARGS[@]}" \
   "$CUSTOMER_NAME"

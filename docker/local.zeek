@@ -11,7 +11,6 @@ redef ignore_checksums = T;
 # redef SOCKS::default_capture_password = T;
 
 @load tuning/defaults
-@load misc/scan
 @load frameworks/software/vulnerable
 @load frameworks/software/version-changes
 @load frameworks/software/windows-version-detection

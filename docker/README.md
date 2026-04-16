@@ -104,6 +104,6 @@ total 9.4M
 ```
 ## <a name="Footer"></a>Copyright
 
-[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2023 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
+[NAVV](https://github.com/cisagov/network-architecture-verification-and-validation) is Copyright 2024 Battelle Energy Alliance, LLC, licensed under the BSD-3 Clause License.
 
 See [`LICENSE`](./LICENSE) for the terms of its release.
