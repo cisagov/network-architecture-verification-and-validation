@@ -1,2 +1,13 @@
+# Type checking
 mypy
+
+# Release tooling
 semver
+build
+twine
+
+# Formatting / Linting
+pre-commit
+
+# Optional features (Geolocation)
+maxminddb
