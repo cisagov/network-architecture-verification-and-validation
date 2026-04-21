@@ -134,6 +134,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     unk_int_IPs = set()
     purdue_violations = []
     sankey_data = {}
+    verified_sankey_data = {}
     perform_analysis(
         wb,
         rows,
@@ -147,6 +148,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
         unk_int_IPs,
         purdue_violations=purdue_violations,
         sankey_data=sankey_data,
+        verified_sankey_data=verified_sankey_data,
         geolocator=geolocator,
         ext_dns_cache=ext_dns_cache,
         timer=timer_data,
@@ -164,7 +166,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     
     write_legend_sheet(wb)
     
-    generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"))
+    generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"), title="Unfiltered NAVV Purdue Segmentation Flows")
+    generate_sankey_html(verified_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_verified.html"), title="Verified Connections NAVV Purdue Segmentation Flows")
 
     auto_adjust_width(wb["Analysis"])
 

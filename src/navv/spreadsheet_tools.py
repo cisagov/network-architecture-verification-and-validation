@@ -221,12 +221,14 @@ def perform_analysis(
     unk_int_IPs,
     purdue_violations=None,
     sankey_data=None,
+    verified_sankey_data=None,
     geolocator=None,
     ext_dns_cache=None,
     **kwargs,
 ):
     if purdue_violations is None: purdue_violations = []
     if sankey_data is None: sankey_data = {}
+    if verified_sankey_data is None: verified_sankey_data = {}
     # Read existing notes before creating new sheet
     existing_notes = read_existing_notes(wb)
     
@@ -295,8 +297,15 @@ def perform_analysis(
             row.direction = "Internal -> Internal (Lateral)"
             
         # Collect Sankey data
-        sankey_key = (f"{src_seg} [{row.src_desc[3]}]", f"{dst_seg} [{row.dest_desc[3]}]")
+        # Group all unresolved external IPs into a single "Internet" node
+        sankey_src = "Internet" if src_seg == "External" else f"{src_seg} [{row.src_desc[3]}]"
+        sankey_dst = "Internet" if dst_seg == "External" else f"{dst_seg} [{row.dest_desc[3]}]"
+        
+        sankey_key = (sankey_src, sankey_dst)
         sankey_data[sankey_key] = sankey_data.get(sankey_key, 0) + int(row.count)
+        
+        if row.conn in ["SF", "S1", "OTH"]:
+            verified_sankey_data[sankey_key] = verified_sankey_data.get(sankey_key, 0) + int(row.count)
         
         # Check Purdue violation
         try:
@@ -766,7 +775,7 @@ def write_purdue_violations_sheet(violations, wb):
         sheet.add_table(tab)
     auto_adjust_width(sheet)
 
-def generate_sankey_html(sankey_data, output_path):
+def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentation Flows"):
     nodes = set()
     for (src, dst) in sankey_data.keys():
         nodes.add(src)
@@ -784,11 +793,24 @@ def generate_sankey_html(sankey_data, output_path):
         targets.append(node_indices[dst])
         values.append(count)
         
+    total_connections = sum(values) if values else 1
+    
+    # Calculate percentage for each node and update labels
+    node_labels = []
+    for n in nodes:
+        n_traffic = sum(count for (src, dst), count in sankey_data.items() if src == n or dst == n)
+        pct = (n_traffic / total_connections) * 100
+        node_labels.append(f"{n} ({pct:.1f}%)")
+        
+    # Calculate percentage for each link
+    percentages = [f"{(v / total_connections * 100):.1f}" for v in values]
+        
     js_data = {
-        "nodes": nodes,
+        "nodes": node_labels,
         "sources": sources,
         "targets": targets,
-        "values": values
+        "values": values,
+        "percentages": percentages
     }
     import json
     
@@ -796,7 +818,7 @@ def generate_sankey_html(sankey_data, output_path):
     <!DOCTYPE html>
     <html>
     <head>
-        <title>NAVV Purdue Segment Sankey Diagram</title>
+        <title>{title}</title>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <style>
             body, html {{ margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; }}
@@ -819,12 +841,14 @@ def generate_sankey_html(sankey_data, output_path):
                 link: {{
                     source: data.sources,
                     target: data.targets,
-                    value: data.values
+                    value: data.values,
+                    customdata: data.percentages,
+                    hovertemplate: '%{{source.label}} &rarr; %{{target.label}}<br />Connections: %{{value}}<br />Percent of Total: %{{customdata}}%<extra></extra>'
                 }}
             }};
             
             var layout = {{
-                title: "NAVV Purdue Segmentation Flows",
+                title: "{title}",
                 font: {{ size: 12 }}
             }};
             
