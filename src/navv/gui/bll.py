@@ -19,10 +19,15 @@ from navv.spreadsheet_tools import (
     write_snmp_sheet,
     write_stats_sheet,
     write_unknown_internals_sheet,
+    write_internal_hosts_sheet,
+    write_purdue_violations_sheet,
+    write_legend_sheet,
+    generate_sankey_html,
 )
 from navv.zeek import (
     get_conn_data,
     get_dns_data,
+    get_dhcp_data,
     get_snmp_data,
     run_zeek,
     perform_zeekcut,
@@ -64,6 +69,12 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     zeek_data = get_conn_data(zeek_logs)
     snmp_data = get_snmp_data(zeek_logs)
     dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
+    dhcp_data = get_dhcp_data(zeek_logs)
+    
+    # Merge dhcp hostnames into dns dictionary
+    for ip, hostname in dhcp_data.items():
+        if ip not in dns_filtered:
+            dns_filtered[ip] = hostname
 
     # Get dns data for resolution
     json_path = os.path.join(output_dir, f"{customer_name}_dns_data.json")
@@ -71,12 +82,18 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     # Get zeek dataframes
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
     snmp_df = get_snmp_df(snmp_data)
+    
+    # Get mac dataframe
+    from navv.bll import get_mac_df
+    mac_df = get_mac_df(zeek_df)
 
     # Turn zeekcut data into rows for spreadsheet
     rows = create_analysis_array(zeek_data, timer=timer_data)
 
     ext_IPs = set()
     unk_int_IPs = set()
+    purdue_violations = []
+    sankey_data = {}
     perform_analysis(
         wb,
         rows,
@@ -88,6 +105,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
         json_path,
         ext_IPs,
         unk_int_IPs,
+        purdue_violations=purdue_violations,
+        sankey_data=sankey_data,
         timer=timer_data,
     )
 
@@ -96,6 +115,13 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     write_unknown_internals_sheet(unk_int_IPs, wb)
 
     write_snmp_sheet(snmp_df, wb)
+    
+    segment_dict = {str(seg.network): seg for seg in segments}
+    write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict)
+    write_purdue_violations_sheet(purdue_violations, wb)
+    write_legend_sheet(wb)
+    
+    generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"))
 
     auto_adjust_width(wb["Analysis"])
     times = (

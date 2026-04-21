@@ -69,26 +69,32 @@ def get_mac_df(zeek_df: pd.DataFrame):
     smac_df = smac_df.rename(columns={'src_mac': 'mac', 'src_ip': 'ip'})
     dmac_df = dmac_df.rename(columns={'dst_mac': 'mac', 'dst_ip': 'ip'})
     mac_df = smac_df._append(dmac_df, ignore_index=True)
-    mac_df = mac_df.groupby('mac')['ip'].apply(list).reset_index(name='associated_ip')
+    mac_df = mac_df.groupby('ip')['mac'].apply(lambda x: list(set(x))).reset_index(name='mac')
 
     for index, row in enumerate(mac_df.to_dict(orient="records"), start=0):
-        # Source IPs - Need to get unique values
-        ips = set(row["associated_ip"])
-        list_ips = (list(ips))
-        if len(list_ips) > 1:
-            ip_list = ', '.join([str(item) for item in list_ips])
-
+        macs = row["mac"]
+        # Filter out empty or dash macs if possible
+        v_macs = [m for m in macs if m and m != '-']
+        if len(v_macs) > 1:
+            mac_str = ', '.join([str(item) for item in v_macs])
+        elif len(v_macs) == 1:
+            mac_str = v_macs[0]
         else:
-            ip_list = list_ips[0]
-
-        mac_df.at[index, 'associated_ip'] = ip_list
+            mac_str = ""
+        mac_df.at[index, 'mac'] = mac_str
 
     # Source Manufacturer column
     mac_vendors = {}
     with open(MAC_VENDORS_JSON_FILE) as f:
         mac_vendors = json.load(f)
-    mac_df["vendor"] = mac_df["mac"].apply(
-        lambda mac: get_mac_vendor(mac_vendors, mac)
-    )
+        
+    def get_vendors(mac_val):
+        if not mac_val: return "Unknown vendor"
+        v_list = [get_mac_vendor(mac_vendors, m.strip()) for m in str(mac_val).split(',')]
+        v_set = set(v for v in v_list if v != "Unknown vendor")
+        if not v_set: return "Unknown vendor"
+        return ', '.join(list(v_set))
+        
+    mac_df["vendor"] = mac_df["mac"].apply(get_vendors)
 
     return mac_df

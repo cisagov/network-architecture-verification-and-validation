@@ -20,7 +20,8 @@ class Segment:
     name: str
     description: str
     network: str
-    color: str
+    color: list
+    purdue_level: str = "Unknown"
 
 
 @dataclass
@@ -37,6 +38,7 @@ class AnalysisRowItem:
     src_geo: str = ""  # Added for geolocation
     dst_geo: str = ""  # Added for geolocation
     notes: str = ""
+    direction: str = ""
 
 
 icmp4_types = {

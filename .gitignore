@@ -23,3 +23,10 @@ test-data
 ## Code Editors ##
 .idea
 .vscode
+
+## External Databases ##
+*.mmdb
+*.mmdb.gz
+
+## Logs ##
+*.log

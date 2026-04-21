@@ -84,6 +84,7 @@ def get_workbook(file_name):
         seg_sheet.cell(row=1, column=1, value="Name").style = HEADER_STYLE
         seg_sheet.cell(row=1, column=2, value="Description").style = HEADER_STYLE
         seg_sheet.cell(row=1, column=3, value="CIDR").style = HEADER_STYLE
+        seg_sheet.cell(row=1, column=4, value="Purdue Level").style = HEADER_STYLE
     return wb
 
 
@@ -112,6 +113,9 @@ def get_segments_data(ws):
             continue
         network_ip = row[2].value
         network_ips = [str(ip) for ip in netaddr.IPNetwork(network_ip)]
+        
+        purdue_level = str(row[3].value).strip() if len(row) > 3 and row[3].value else "Unknown"
+        
         for ip in network_ips:
             segments.append(
                 data_types.Segment(
@@ -119,6 +123,7 @@ def get_segments_data(ws):
                     description=row[1].value,
                     network=ip,
                     color=[copy(row[0].fill), copy(row[0].font)],
+                    purdue_level=purdue_level,
                 )
             )
     return segments
@@ -223,10 +228,14 @@ def perform_analysis(
     json_path,
     ext_IPs,
     unk_int_IPs,
+    purdue_violations=None,
+    sankey_data=None,
     geolocator=None,
     ext_dns_cache=None,
     **kwargs,
 ):
+    if purdue_violations is None: purdue_violations = []
+    if sankey_data is None: sankey_data = {}
     # Read existing notes before creating new sheet
     existing_notes = read_existing_notes(wb)
     
@@ -244,6 +253,7 @@ def perform_analysis(
             "Service",
             "Proto",
             "Conn_State",
+            "Direction",
             "Notes",
         ]
     )
@@ -280,6 +290,34 @@ def perform_analysis(
         else:
             row.src_geo = ""
             row.dst_geo = ""
+            
+        src_seg = row.src_desc[2]
+        dst_seg = row.dest_desc[2]
+        
+        if src_seg == "External" and dst_seg == "External":
+            row.direction = "External -> External"
+        elif src_seg == "External":
+            row.direction = "External -> Internal (Ingress)"
+        elif dst_seg == "External":
+            row.direction = "Internal -> External (Egress)"
+        else:
+            row.direction = "Internal -> Internal (Lateral)"
+            
+        # Collect Sankey data
+        sankey_key = (f"{src_seg} [{row.src_desc[3]}]", f"{dst_seg} [{row.dest_desc[3]}]")
+        sankey_data[sankey_key] = sankey_data.get(sankey_key, 0) + int(row.count)
+        
+        # Check Purdue violation
+        try:
+            sp = str(row.src_desc[3]).upper().replace("L", "")
+            dp = str(row.dest_desc[3]).upper().replace("L", "")
+            if sp != "UNKNOWN" and dp != "UNKNOWN":
+                s_lvl = float(sp)
+                d_lvl = float(dp)
+                if abs(s_lvl - d_lvl) > 1.5:
+                    purdue_violations.append(row)
+        except Exception:
+            pass
         
         handle_service(row, services)
         row.conn = (row.conn, conn_states[row.conn])
@@ -291,7 +329,7 @@ def perform_analysis(
         
         write_row_to_sheet(row, row_index, sheet)
     
-    tab = Table(displayName="AnalysisTable", ref=f"A1:L{len(rows)+1}")
+    tab = Table(displayName="AnalysisTable", ref=f"A1:M{len(rows)+1}")
     sheet.add_table(tab)
 
     # Hide geolocation columns by default (users can unhide in Excel)
@@ -343,9 +381,11 @@ def write_row_to_sheet(row, row_index, sheet):
     conn_State = sheet.cell(row=row_index, column=11, value=row.conn[0])
     conn_State.fill = row.conn[1][0]
     conn_State.font = row.conn[1][1]
+    
+    sheet.cell(row=row_index, column=12, value=row.direction)
 
     # Write the note (either existing or empty string)
-    sheet.cell(row=row_index, column=12, value=row.notes)
+    sheet.cell(row=row_index, column=13, value=row.notes)
 
 
 def handle_service(row, services):
@@ -387,16 +427,20 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
     if ext_dns_cache is None:
         ext_dns_cache = {}
     
-    desc_to_change = ("Not Triggered IP", IPV6_CELL_COLOR)
+    desc_to_change = ("Not Triggered IP", IPV6_CELL_COLOR, "Unknown", "Unknown")
     if ip_to_check == str("0.0.0.0"):
         desc_to_change = (
             "Unassigned IPv4",
             IPV6_CELL_COLOR,
+            "Multicast/Broadcast",
+            "Unknown"
         )
     elif ip_to_check == str("255.255.255.255"):
         desc_to_change = (
             "IPv4 All Subnet Broadcast",
             IPV6_CELL_COLOR,
+            "Multicast/Broadcast",
+            "Unknown"
         )
     elif (
         netaddr.valid_ipv6(ip_to_check) or netaddr.IPAddress(ip_to_check).is_multicast()
@@ -404,6 +448,8 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
         desc_to_change = (
             f"{'IPv6' if netaddr.valid_ipv6(ip_to_check) else 'IPv4'}{'_Multicast' if netaddr.IPAddress(ip_to_check).is_multicast() else ''}",
             IPV6_CELL_COLOR,
+            "Multicast/Broadcast",
+            "Unknown"
         )
     elif (
         netaddr.IPAddress(ip_to_check).is_link_local()
@@ -411,6 +457,8 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
         desc_to_change = (
             f"{'IPv6' if netaddr.valid_ipv6(ip_to_check) else 'IPv4'}{'_Link-local' if netaddr.IPAddress(ip_to_check).is_link_local() else ''}",
             IPV6_CELL_COLOR,
+            "Link-Local",
+            "Unknown"
         )
     elif ip_to_check in segment_dict:
         # O(1) dict lookup
@@ -427,14 +475,16 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
         desc_to_change = (
             resolution,
             segment.color,
+            segment.name,
+            segment.purdue_level
         )
     elif netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
         if ip_to_check in dns_data:
-            desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR)
+            desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
         elif ip_to_check in inventory:
-            desc_to_change = (inventory[ip_to_check].name, INTERNAL_NETWORK_CELL_COLOR)
+            desc_to_change = (inventory[ip_to_check].name, INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
         else:
-            desc_to_change = ("Unknown Internal address", INTERNAL_NETWORK_CELL_COLOR)
+            desc_to_change = ("Unknown Internal address", INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
             unk_int_IPs.add(ip_to_check)
     else:
         ext_IPs.add(ip_to_check)
@@ -460,7 +510,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
                 ext_dns_cache[ip_to_check] = "Unresolved external address"
                 ALREADY_UNRESOLVED.append(ip_to_check)
         
-        desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR)
+        desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR, "External", "L5")
     return desc_to_change
 
 
@@ -520,24 +570,29 @@ def write_snmp_sheet(snmp_df, wb):
     auto_adjust_width(sheet, 40)
 
 
-def write_externals_sheet(IPs, wb, geolocator=None):
+def write_externals_sheet(IPs, wb, geolocator=None, ext_dns_cache=None):
+    if ext_dns_cache is None:
+        ext_dns_cache = {}
     ext_sheet = make_sheet(wb, "Externals", idx=5)
-    ext_sheet.append(["External IP", "Geolocation"])
+    ext_sheet.append(["External IP", "Country", "Region", "City", "ISP", "Domain", "Reputation"])
     for row_index, IP in enumerate(sorted(IPs), start=2):
-        # External IP column
         cell = ext_sheet[f"A{row_index}"]
         cell.value = IP
         
-        # Geolocation column
-        geo_cell = ext_sheet[f"B{row_index}"]
+        geo_dict = {"country": "", "region": "", "city": "", "isp": ""}
         if geolocator and geolocator.enabled:
-            geo_cell.value = geolocator.lookup(IP) or ""
-        else:
-            geo_cell.value = ""
+            geo_dict = geolocator.lookup_external(IP)
+            
+        ext_sheet[f"B{row_index}"].value = geo_dict["country"]
+        ext_sheet[f"C{row_index}"].value = geo_dict["region"]
+        ext_sheet[f"D{row_index}"].value = geo_dict["city"]
+        ext_sheet[f"E{row_index}"].value = geo_dict["isp"]
+        ext_sheet[f"F{row_index}"].value = ext_dns_cache.get(IP, "")
+        ext_sheet[f"G{row_index}"].value = "" # Reputation
     
-    # Add AutoFilter to columns A and B
     if len(IPs) > 0:
-        ext_sheet.auto_filter.ref = f"A1:B{len(IPs)+1}"
+        tab = Table(displayName="ExternalsTable", ref=f"A1:G{len(IPs)+1}")
+        ext_sheet.add_table(tab)
 
     auto_adjust_width(ext_sheet)
 
@@ -564,31 +619,214 @@ def write_stats_sheet(wb, stats):
         stats_sheet[f"{string.ascii_uppercase[col_index]}2"].value = stats[stat]
     auto_adjust_width(stats_sheet)
 
-def write_mac_sheet(mac_df, wb):
-    """Fill spreadsheet with MAC address -> IP address translation with manufacturer information"""
-    sheet = make_sheet(wb, "MAC", idx=4)
+def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
+    """Fill spreadsheet with IP -> MAC, Manufacturer, Segment, Purdue Level, Inventory Status"""
+    sheet = make_sheet(wb, "Internal Hosts", idx=2)
     sheet.append(
-        ["MAC", "Manufacturer", "IPs"]
+        ["IP Address", "MAC Address", "Manufacturer", "Network Segment", "Purdue Level", "In Inventory?", "Recommendation"]
     )
-    for index, row in enumerate(mac_df.to_dict(orient="records"), start=2):
-        # Source MAC column
-        sheet[f"A{index}"].value = row["mac"]
+    filtered_rows = []
+    import netaddr
+    for row in mac_df.to_dict(orient="records"):
+        ip = row["ip"]
+        try:
+            if ip in ["0.0.0.0", "255.255.255.255"] or netaddr.valid_ipv6(ip):
+                continue
+            ip_obj = netaddr.IPAddress(ip)
+            if ip_obj.is_multicast() or ip_obj.is_link_local() or ip_obj.is_loopback():
+                continue
+            if not ip_obj.is_ipv4_private_use() and ip not in segment_dict:
+                continue
+        except Exception:
+            continue
+        filtered_rows.append(row)
 
-        # Source Manufacturer column
-        sheet[f"B{index}"].value = row["vendor"]
+    for index, row in enumerate(filtered_rows, start=2):
+        ip = row["ip"]
+        mac = row["mac"]
+        vendor = row["vendor"]
+        
+        segment_name = "Unknown Internal"
+        purdue_level = "Unknown"
+        in_inventory = "Yes" if ip in inventory else "No"
+        
+        if ip in segment_dict:
+            segment_name = segment_dict[ip].name
+            purdue_level = segment_dict[ip].purdue_level
+            
+        sheet[f"A{index}"].value = ip
+        sheet[f"B{index}"].value = mac
+        sheet[f"C{index}"].value = vendor
+        sheet[f"D{index}"].value = segment_name
+        sheet[f"E{index}"].value = purdue_level
+        sheet[f"F{index}"].value = in_inventory
+        sheet[f"G{index}"].value = "" # Recommendation
 
-        # Source IPs
-        sheet[f"C{index}"].value = row["associated_ip"]
-        if len(row["associated_ip"]) > 16:
-            sel_cell = sheet[f"C{index}"]
-            sel_cell.alignment = Alignment(wrap_text=True)
-            est_row_hght = int(len(row["associated_ip"])/50)
-            if est_row_hght < 1:
-                est_row_hght = 1
-            sheet.row_dimensions[index].height = est_row_hght * 15
-
+    if len(filtered_rows) > 0:
+        tab = Table(displayName="InternalHostsTable", ref=f"A1:G{len(filtered_rows)+1}")
+        sheet.add_table(tab)
     auto_adjust_width(sheet)
-    sheet.column_dimensions["C"].width = 39 * 1.2
+
+def write_legend_sheet(wb):
+    sheet = make_sheet(wb, "Legend & ReadMe", idx=0)
+    sheet.append(["NAVV Network Analysis Legend"])
+    sheet.append([""])
+    sheet.append(["Colors", "Meaning"])
+    sheet.append(["Red Warning", "IPv6, Broadcast, Multicast, or Link-Local traffic. Expected, but highlight misconfigurations."])
+    sheet.append(["Yellow Background", "Internal Network Traffic (Device sits in RFC1918 or segment space)."])
+    sheet.append(["Black Background / Yellow Text", "External Network Traffic. Warning: Reach in or Reach out!"])
+    sheet.append(["Pink Background", "ICMP Traffic (Pings)."])
+    sheet.append([""])
+    sheet.append(["Tabs", "Purpose"])
+    sheet.append(["Analysis", "The core analysis comparing Src IP, Dest IP, Port, and Protocol over time."])
+    sheet.append(["Purdue Violations", "Automated extract of traffic crossing multiple Purdue tiers."])
+    sheet.append(["Internal Hosts", "Inventory of all actively communicating internal IPs mapped to MACs and Segments."])
+    sheet.append(["Externals", "Enriched list of all external/Internet IP communications."])
+    sheet.append(["SNMP", "Audit of all cleartext SNMP Version & Community strings sent and received."])
+    sheet.append(["Unknown Internals", "A list of Internal IPs that have no DNS or Inventory label."])
+    
+    # Quick styling
+    from openpyxl.styles import Font, PatternFill
+    sheet["A1"].font = Font(bold=True, size=14)
+    sheet["A3"].font = Font(bold=True)
+    sheet["B3"].font = Font(bold=True)
+    sheet["A9"].font = Font(bold=True)
+    sheet["A4"].fill = IPV6_CELL_COLOR[0]
+    sheet["A4"].font = IPV6_CELL_COLOR[1]
+    
+    sheet["A5"].fill = INTERNAL_NETWORK_CELL_COLOR[0]
+    sheet["A5"].font = INTERNAL_NETWORK_CELL_COLOR[1]
+    
+    sheet["A6"].fill = EXTERNAL_NETWORK_CELL_COLOR[0]
+    sheet["A6"].font = EXTERNAL_NETWORK_CELL_COLOR[1]
+    
+    sheet["A7"].fill = ICMP_CELL_COLOR[0]
+    sheet["A7"].font = ICMP_CELL_COLOR[1]
+    
+    auto_adjust_width(sheet)
+
+def write_purdue_violations_sheet(violations, wb):
+    sheet = make_sheet(wb, "Purdue Violations", idx=1)
+    sheet.append(
+        [
+            "Count",
+            "Src_IP",
+            "Src_Desc",
+            "Src_Purdue",
+            "Dest_IP",
+            "Dest_Desc",
+            "Dst_Purdue",
+            "Port",
+            "Service",
+            "Proto",
+            "Direction",
+        ]
+    )
+    for row_index, row in enumerate(violations, start=2):
+        sheet.cell(row=row_index, column=1, value=int(row.count))
+        
+        src_IP = sheet.cell(row=row_index, column=2, value=row.src_ip)
+        src_IP.fill = row.src_desc[1][0]
+        src_IP.font = row.src_desc[1][1]
+        
+        src_Desc = sheet.cell(row=row_index, column=3, value=row.src_desc[0])
+        src_Desc.fill = row.src_desc[1][0]
+        src_Desc.font = row.src_desc[1][1]
+        
+        sheet.cell(row=row_index, column=4, value=row.src_desc[3])
+        
+        dest_IP = sheet.cell(row=row_index, column=5, value=row.dest_ip)
+        dest_IP.fill = row.dest_desc[1][0]
+        dest_IP.font = row.dest_desc[1][1]
+        
+        dest_Desc = sheet.cell(row=row_index, column=6, value=row.dest_desc[0])
+        dest_Desc.fill = row.dest_desc[1][0]
+        dest_Desc.font = row.dest_desc[1][1]
+        
+        sheet.cell(row=row_index, column=7, value=row.dest_desc[3])
+        sheet.cell(row=row_index, column=8, value=int(row.port))
+        
+        service = sheet.cell(row=row_index, column=9, value=row.service[0])
+        service.fill = row.service[1][0]
+        service.font = row.service[1][1]
+        
+        sheet.cell(row=row_index, column=10, value=row.proto)
+        sheet.cell(row=row_index, column=11, value=row.direction)
+        
+    if len(violations) > 0:
+        tab = Table(displayName="PurdueViolationsTable", ref=f"A1:K{len(violations)+1}")
+        sheet.add_table(tab)
+    auto_adjust_width(sheet)
+
+def generate_sankey_html(sankey_data, output_path):
+    nodes = set()
+    for (src, dst) in sankey_data.keys():
+        nodes.add(src)
+        nodes.add(dst)
+    nodes = list(nodes)
+    
+    node_indices = {n: i for i, n in enumerate(nodes)}
+    
+    sources = []
+    targets = []
+    values = []
+    
+    for (src, dst), count in sankey_data.items():
+        sources.append(node_indices[src])
+        targets.append(node_indices[dst])
+        values.append(count)
+        
+    js_data = {
+        "nodes": nodes,
+        "sources": sources,
+        "targets": targets,
+        "values": values
+    }
+    import json
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>NAVV Purdue Segment Sankey Diagram</title>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <style>
+            body, html {{ margin: 0; padding: 0; height: 100%; width: 100%; font-family: sans-serif; }}
+            #sankey_div {{ width: 100%; height: 100vh; }}
+        </style>
+    </head>
+    <body>
+        <div id="sankey_div"></div>
+        <script>
+            var data = {json.dumps(js_data)};
+            var trace = {{
+                type: "sankey",
+                orientation: "h",
+                node: {{
+                    pad: 15,
+                    thickness: 20,
+                    line: {{ color: "black", width: 0.5 }},
+                    label: data.nodes
+                }},
+                link: {{
+                    source: data.sources,
+                    target: data.targets,
+                    value: data.values
+                }}
+            }};
+            
+            var layout = {{
+                title: "NAVV Purdue Segmentation Flows",
+                font: {{ size: 12 }}
+            }};
+            
+            Plotly.newPlot("sankey_div", [trace], layout);
+        </script>
+    </body>
+    </html>
+    """
+    with open(output_path, "w") as f:
+        f.write(html_content)
 
 def make_sheet(wb, sheet_name, idx=None):
     """Create the sheet if it doesn't already exist otherwise remove it and recreate it"""
