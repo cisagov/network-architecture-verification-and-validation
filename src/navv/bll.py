@@ -68,20 +68,16 @@ def get_mac_df(zeek_df: pd.DataFrame):
 
     smac_df = smac_df.rename(columns={'src_mac': 'mac', 'src_ip': 'ip'})
     dmac_df = dmac_df.rename(columns={'dst_mac': 'mac', 'dst_ip': 'ip'})
-    mac_df = smac_df._append(dmac_df, ignore_index=True)
+    mac_df = pd.concat([smac_df, dmac_df], ignore_index=True)
     mac_df = mac_df.groupby('ip')['mac'].apply(lambda x: list(set(x))).reset_index(name='mac')
 
-    for index, row in enumerate(mac_df.to_dict(orient="records"), start=0):
-        macs = row["mac"]
-        # Filter out empty or dash macs if possible
+    def format_macs(macs):
         v_macs = [m for m in macs if m and m != '-']
-        if len(v_macs) > 1:
-            mac_str = ', '.join([str(item) for item in v_macs])
-        elif len(v_macs) == 1:
-            mac_str = v_macs[0]
-        else:
-            mac_str = ""
-        mac_df.at[index, 'mac'] = mac_str
+        if not v_macs:
+            return ""
+        return ", ".join(str(item) for item in v_macs)
+
+    mac_df["mac"] = mac_df["mac"].apply(format_macs)
 
     # Source Manufacturer column
     mac_vendors = {}

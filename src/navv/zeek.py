@@ -90,9 +90,9 @@ def perform_zeekcut(fields, log_file):
     try:
         with open(log_file, "rb") as f:
             zeekcut = Popen(
-                ["zeek-cut"] + fields, stdout=PIPE, stdin=PIPE, stderr=STDOUT
+                ["zeek-cut"] + fields, stdin=f, stdout=PIPE, stderr=STDOUT
             )
-            return zeekcut.communicate(input=f.read())[0]
+            return zeekcut.communicate()[0]
     except OSError as e:
         # probably "file does not exist"
         return b""

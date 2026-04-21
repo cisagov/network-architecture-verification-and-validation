@@ -1,0 +1,2 @@
+# Ensure binary files are not corrupted by Windows CRLF line endings
+*.pkl binary

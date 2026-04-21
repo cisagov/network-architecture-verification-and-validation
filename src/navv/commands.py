@@ -87,7 +87,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     services, conn_states = get_package_data()
     timer_data = dict()
     segments = get_segments_data(wb["Segments"])
-    inventory = get_inventory_data(wb["Inventory Input"])
+    inventory_tab_name = "Inventory" if "Inventory" in wb.sheetnames else "Inventory Input"
+    inventory = get_inventory_data(wb[inventory_tab_name])
 
     if pcap:
         run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
@@ -157,8 +158,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
 
     write_snmp_sheet(snmp_df, wb)
 
-    segment_dict = {str(seg.network): seg for seg in segments}
-    write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict)
+    write_internal_hosts_sheet(mac_df, wb, inventory, segments)
     
     write_purdue_violations_sheet(purdue_violations, wb)
     
@@ -187,6 +187,13 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     )
     write_stats_sheet(wb, timer_data)
     write_conn_states_sheet(conn_states, wb)
+
+    # Reorder sheets to match original layout
+    desired_order = ["Legend & ReadMe", "Analysis", inventory_tab_name, "Segments"]
+    current_sheets = wb.sheetnames
+    front_sheets = [s for s in desired_order if s in current_sheets]
+    rest = [s for s in current_sheets if s not in front_sheets]
+    wb._sheets = [wb[s] for s in front_sheets + rest]
 
     wb.save(file_name)
     

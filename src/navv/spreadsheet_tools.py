@@ -8,7 +8,6 @@ from collections import Counter
 import socket
 from copy import copy
 import json
-import pkg_resources
 import pickle
 import string
 
@@ -25,7 +24,7 @@ from navv.message_handler import warning_msg, info_msg
 from navv.geolocation import Geolocator
 
 
-DATA_PKL_FILE = pkg_resources.resource_filename(__name__, "data/data.pkl")
+DATA_PKL_FILE = os.path.join(os.path.dirname(__file__), "data", "data.pkl")
 COL_NAMES = [
     "Count",
     "Src_IP",
@@ -107,25 +106,21 @@ def get_inventory_data(ws, **kwargs):
 @timeit
 def get_segments_data(ws):
     segments = []
-    network_ip = ""
     for row in itertools.islice(ws.iter_rows(), 1, None):
         if not row[2].value:
             continue
         network_ip = row[2].value
-        network_ips = [str(ip) for ip in netaddr.IPNetwork(network_ip)]
-        
         purdue_level = str(row[3].value).strip() if len(row) > 3 and row[3].value else "Unknown"
         
-        for ip in network_ips:
-            segments.append(
-                data_types.Segment(
-                    name=row[0].value,
-                    description=row[1].value,
-                    network=ip,
-                    color=[copy(row[0].fill), copy(row[0].font)],
-                    purdue_level=purdue_level,
-                )
+        segments.append(
+            data_types.Segment(
+                name=row[0].value,
+                description=row[1].value,
+                network=netaddr.IPNetwork(network_ip),
+                color=[copy(row[0].fill), copy(row[0].font)],
+                purdue_level=purdue_level,
             )
+        )
     return segments
 
 
@@ -191,25 +186,21 @@ def read_existing_notes(wb):
 @timeit
 def create_analysis_array(sort_input, **kwargs):
     arr = []
-    # sort by count and source IP
-    counted = sorted(
-        list(
-            str(count) + "\t" + item
-            for item, count in sorted(Counter(sort_input).items(), key=lambda x: x[0])
-        ),
-        key=lambda x: int(x.split("\t")[0]),
-        reverse=True,
-    )
-    for row in counted:
-        cells = row.split("\t")
+    # Sort first by item (alphabetically)
+    items = sorted(Counter(sort_input).items(), key=lambda x: x[0])
+    # Then sort by count (descending). Python sort is stable, so items with same count remain alphabetically sorted.
+    counted = sorted(items, key=lambda x: x[1], reverse=True)
+    
+    for item, count in counted:
+        cells = item.split("\t")
         arr.append(
             data_types.AnalysisRowItem(
-                count=cells[0],
-                src_ip=cells[1],
-                dest_ip=cells[2],
-                port=cells[3],
-                proto=cells[4],
-                conn=cells[5],
+                count=str(count),
+                src_ip=cells[0],
+                dest_ip=cells[1],
+                port=cells[2],
+                proto=cells[3],
+                conn=cells[4],
             )
         )
 
@@ -262,8 +253,8 @@ def perform_analysis(
     if ext_dns_cache is None:
         ext_dns_cache = {}
     
-    # Convert segments list to dict for O(1) lookup (optimization)
-    segment_dict = {seg.network: seg for seg in segments}
+    # We pass the segments list directly; we no longer explode CIDRs into massive dictionaries
+    segment_dict = segments
     
     # Create IP result cache (optimization)
     ip_result_cache = {}
@@ -460,57 +451,67 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
             "Link-Local",
             "Unknown"
         )
-    elif ip_to_check in segment_dict:
-        # O(1) dict lookup
-        segment = segment_dict[ip_to_check]
-        if ip_to_check in dns_data:
-            resolution = dns_data[ip_to_check]
-        elif ip_to_check in inventory:
-            resolution = inventory[ip_to_check].name
-        else:
-            resolution = f"Unknown device in {segment.name} network"
-            unk_int_IPs.add(ip_to_check)
-        if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
-            resolution = resolution + " {Non-Priv IP}"
-        desc_to_change = (
-            resolution,
-            segment.color,
-            segment.name,
-            segment.purdue_level
-        )
-    elif netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
-        if ip_to_check in dns_data:
-            desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
-        elif ip_to_check in inventory:
-            desc_to_change = (inventory[ip_to_check].name, INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
-        else:
-            desc_to_change = ("Unknown Internal address", INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
-            unk_int_IPs.add(ip_to_check)
     else:
-        ext_IPs.add(ip_to_check)
-        # Default resolution for external IPs
-        resolution = "Unresolved external address"
-        
-        # Priority: dns_data > inventory > ext_dns_cache > socket lookup
-        if ip_to_check in dns_data:
-            resolution = dns_data[ip_to_check]
-        elif ip_to_check in inventory:
-            resolution = inventory[ip_to_check].name + " {Non-Priv IP}"
-        elif ip_to_check in ext_dns_cache:
-            # Use cached external DNS lookup
-            resolution = ext_dns_cache[ip_to_check]
+        # Check if IP falls within any of our defined segment CIDRs
+        segment = None
+        try:
+            ip_obj = netaddr.IPAddress(ip_to_check)
+            for seg in segment_dict:
+                if ip_obj in seg.network:
+                    segment = seg
+                    break
+        except Exception:
+            pass
+
+        if segment:
+            if ip_to_check in dns_data:
+                resolution = dns_data[ip_to_check]
+            elif ip_to_check in inventory:
+                resolution = inventory[ip_to_check].name
+            else:
+                resolution = f"Unknown device in {segment.name} network"
+                unk_int_IPs.add(ip_to_check)
+            if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
+                resolution = resolution + " {Non-Priv IP}"
+            desc_to_change = (
+                resolution,
+                segment.color,
+                segment.name,
+                segment.purdue_level
+            )
+        elif netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
+            if ip_to_check in dns_data:
+                desc_to_change = (dns_data[ip_to_check], INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
+            elif ip_to_check in inventory:
+                desc_to_change = (inventory[ip_to_check].name, INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
+            else:
+                desc_to_change = ("Unknown Internal address", INTERNAL_NETWORK_CELL_COLOR, "Unknown Internal", "Unknown")
+                unk_int_IPs.add(ip_to_check)
         else:
-            # Perform reverse DNS lookup and cache the result
-            try:
-                resolution = socket.gethostbyaddr(ip_to_check)[0]
-                # Cache successful lookup
-                ext_dns_cache[ip_to_check] = resolution
-            except socket.herror:
-                # Cache the failure too so we don't retry
-                ext_dns_cache[ip_to_check] = "Unresolved external address"
-                ALREADY_UNRESOLVED.append(ip_to_check)
-        
-        desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR, "External", "L5")
+            ext_IPs.add(ip_to_check)
+            # Default resolution for external IPs
+            resolution = "Unresolved external address"
+            
+            # Priority: dns_data > inventory > ext_dns_cache > socket lookup
+            if ip_to_check in dns_data:
+                resolution = dns_data[ip_to_check]
+            elif ip_to_check in inventory:
+                resolution = inventory[ip_to_check].name + " {Non-Priv IP}"
+            elif ip_to_check in ext_dns_cache:
+                # Use cached external DNS lookup
+                resolution = ext_dns_cache[ip_to_check]
+            else:
+                # Perform reverse DNS lookup and cache the result
+                try:
+                    resolution = socket.gethostbyaddr(ip_to_check)[0]
+                    # Cache successful lookup
+                    ext_dns_cache[ip_to_check] = resolution
+                except socket.herror:
+                    # Cache the failure too so we don't retry
+                    ext_dns_cache[ip_to_check] = "Unresolved external address"
+                    ALREADY_UNRESOLVED.append(ip_to_check)
+            
+            desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR, "External", "L5")
     return desc_to_change
 
 
@@ -635,7 +636,8 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
             ip_obj = netaddr.IPAddress(ip)
             if ip_obj.is_multicast() or ip_obj.is_link_local() or ip_obj.is_loopback():
                 continue
-            if not ip_obj.is_ipv4_private_use() and ip not in segment_dict:
+            in_segment = any(ip_obj in seg.network for seg in segment_dict)
+            if not ip_obj.is_ipv4_private_use() and not in_segment:
                 continue
         except Exception:
             continue
@@ -650,9 +652,15 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
         purdue_level = "Unknown"
         in_inventory = "Yes" if ip in inventory else "No"
         
-        if ip in segment_dict:
-            segment_name = segment_dict[ip].name
-            purdue_level = segment_dict[ip].purdue_level
+        try:
+            ip_obj = netaddr.IPAddress(ip)
+            for seg in segment_dict:
+                if ip_obj in seg.network:
+                    segment_name = seg.name
+                    purdue_level = seg.purdue_level
+                    break
+        except Exception:
+            pass
             
         sheet[f"A{index}"].value = ip
         sheet[f"B{index}"].value = mac

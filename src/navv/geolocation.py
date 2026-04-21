@@ -77,23 +77,42 @@ class Geolocator:
             return first.replace(month=first.month - 1)
 
         def download_dbip_lite(db_type: str, dest_path: Path):
+            import ssl
             now = datetime.now()
             url_base = f"https://download.db-ip.com/free/dbip-{db_type}-lite-{{}}.mmdb.gz"
             months_to_try = [now, get_previous_month(now)]
+            
+            def attempt_download(url, ctx=None):
+                req = urllib.request.Request(url, headers={'User-Agent': 'NAVV/3.4.2'})
+                with urllib.request.urlopen(req, timeout=60, context=ctx) as response:
+                    if response.status == 200:
+                        uncompressed_data = gzip.decompress(response.read())
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(dest_path, "wb") as f:
+                            f.write(uncompressed_data)
+                        return True
+                return False
+
             for dt in months_to_try:
                 ym = dt.strftime("%Y-%m")
                 url = url_base.format(ym)
                 try:
                     warning_msg(f"Downloading DB-IP {db_type.upper()} Lite database from {url}...")
-                    req = urllib.request.Request(url, headers={'User-Agent': 'NAVV/3.4.2'})
-                    with urllib.request.urlopen(req, timeout=60) as response:
-                        if response.status == 200:
-                            uncompressed_data = gzip.decompress(response.read())
-                            dest_path.parent.mkdir(parents=True, exist_ok=True)
-                            with open(dest_path, "wb") as f:
-                                f.write(uncompressed_data)
+                    try:
+                        if attempt_download(url):
                             success_msg(f"Successfully downloaded DB-IP {db_type.upper()} Lite to {dest_path}")
                             return True
+                    except urllib.error.URLError as e:
+                        if hasattr(e, 'reason') and isinstance(e.reason, ssl.SSLError):
+                            warning_msg("SSL Verification failed. Retrying without SSL verification...")
+                            ctx = ssl.create_default_context()
+                            ctx.check_hostname = False
+                            ctx.verify_mode = ssl.CERT_NONE
+                            if attempt_download(url, ctx):
+                                success_msg(f"Successfully downloaded DB-IP {db_type.upper()} Lite to {dest_path} (Unverified SSL)")
+                                return True
+                        else:
+                            raise e
                 except urllib.error.HTTPError as e:
                     if e.code == 404: continue
                     error_msg(f"HTTP Error {e.code} downloading {url}")

@@ -19,6 +19,7 @@ __pycache__
 ## Test Data ##
 analysis
 test-data
+test_pcap/
 
 ## Code Editors ##
 .idea
@@ -30,3 +31,5 @@ test-data
 
 ## Logs ##
 *.log
+
+.venv_wsl/
