@@ -27,6 +27,7 @@ from navv.spreadsheet_tools import (
     write_internal_hosts_sheet,
     write_purdue_violations_sheet,
     write_legend_sheet,
+    write_data_layer_sheet,
     generate_sankey_html,
 )
 from navv.zeek import (
@@ -37,7 +38,7 @@ from navv.zeek import (
     run_zeek,
     perform_zeekcut,
 )
-from navv.utilities import pushd
+from navv.utilities import pushd, get_mac_vendor
 from navv.geolocation import Geolocator
 
 
@@ -127,6 +128,37 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     # Get mac dataframe
     mac_df = get_mac_df(zeek_df)
 
+    import pandas as pd
+    smac_df = zeek_df[['src_mac', 'src_ip']].rename(columns={'src_mac': 'mac', 'src_ip': 'ip'})
+    dmac_df = zeek_df[['dst_mac', 'dst_ip']].rename(columns={'dst_mac': 'mac', 'dst_ip': 'ip'})
+    all_macs = pd.concat([smac_df, dmac_df], ignore_index=True)
+    all_macs = all_macs[(all_macs['mac'].notna()) & (all_macs['mac'] != '-')]
+    
+    all_macs['is_ipv4'] = all_macs['ip'].apply(lambda x: 1 if ':' not in str(x) else 0)
+    
+    ipv4_counts = all_macs[all_macs['is_ipv4'] == 1].groupby('mac')['ip'].nunique()
+    ipv6_counts = all_macs[all_macs['is_ipv4'] == 0].groupby('mac')['ip'].nunique()
+    ip_to_macs = all_macs.groupby('ip')['mac'].unique()
+    
+    MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
+    with open(MAC_VENDORS_JSON_FILE) as f:
+        mac_vendors = json.load(f)
+        
+    ip_to_mac_label = {}
+    for ip, macs in ip_to_macs.items():
+        labels = []
+        for m in macs:
+            if ipv4_counts.get(m, 0) > 1 or ipv6_counts.get(m, 0) > 1:
+                if "Network Device" not in labels:
+                    labels.append("Network Device")
+            else:
+                vendor = get_mac_vendor(mac_vendors, m.strip())
+                if vendor and vendor != "Unknown vendor":
+                    labels.append(f"{m} ({vendor})")
+                else:
+                    labels.append(m)
+        ip_to_mac_label[ip] = ", ".join(labels)
+
     # Turn zeekcut data into rows for spreadsheet
     rows = create_analysis_array(zeek_data, timer=timer_data)
 
@@ -151,6 +183,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
         verified_sankey_data=verified_sankey_data,
         geolocator=geolocator,
         ext_dns_cache=ext_dns_cache,
+        ip_to_mac_label=ip_to_mac_label,
         timer=timer_data,
     )
 
@@ -190,6 +223,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     )
     write_stats_sheet(wb, timer_data)
     write_conn_states_sheet(conn_states, wb)
+    write_data_layer_sheet(zeek_df, wb)
 
     # Reorder sheets to match original layout
     desired_order = ["Legend & ReadMe", "Analysis", inventory_tab_name, "Segments"]

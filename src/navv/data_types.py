@@ -37,6 +37,8 @@ class AnalysisRowItem:
     src_desc: str = ""
     src_geo: str = ""  # Added for geolocation
     dst_geo: str = ""  # Added for geolocation
+    src_mac: str = ""
+    dst_mac: str = ""
     notes: str = ""
     direction: str = ""
 

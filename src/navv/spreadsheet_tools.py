@@ -150,16 +150,34 @@ def read_existing_notes(wb):
     
     info_msg("Reading existing notes from Analysis sheet...")
     
+    # Dynamically find column indices based on headers
+    header_row = next(sheet.iter_rows(min_row=1, max_row=1))
+    headers = {cell.value: idx for idx, cell in enumerate(header_row) if cell.value is not None}
+    
+    required_cols = ["Src_IP", "Dest_IP", "Port", "Proto", "Conn_State", "Notes"]
+    
+    # Check if we have all required columns
+    if not all(col in headers for col in required_cols):
+        warning_msg("Could not find all required columns in Analysis sheet. Notes may not be preserved.")
+        return notes_dict
+        
+    src_ip_idx = headers["Src_IP"]
+    dest_ip_idx = headers["Dest_IP"]
+    port_idx = headers["Port"]
+    proto_idx = headers["Proto"]
+    conn_state_idx = headers["Conn_State"]
+    notes_idx = headers["Notes"]
+    
     # Iterate through rows starting from row 2 (skip header)
     for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
         try:
-            # Extract key fields: Src_IP (col 2), Dest_IP (col 5), Port (col 8), Proto (col 10), Conn_State (col 11)
-            src_ip = row[1].value  # Column B (index 1)
-            dest_ip = row[4].value  # Column E (index 4)
-            port = row[7].value  # Column H (index 7)
-            proto = row[9].value  # Column J (index 9)
-            conn_state = row[10].value  # Column K (index 10)
-            note = row[11].value  # Column L (index 11) - Notes
+            # Extract key fields
+            src_ip = row[src_ip_idx].value
+            dest_ip = row[dest_ip_idx].value
+            port = row[port_idx].value
+            proto = row[proto_idx].value
+            conn_state = row[conn_state_idx].value
+            note = row[notes_idx].value
             
             # Only store if we have valid key data and a non-empty note
             if src_ip and dest_ip and port is not None and proto and conn_state:
@@ -224,6 +242,7 @@ def perform_analysis(
     verified_sankey_data=None,
     geolocator=None,
     ext_dns_cache=None,
+    ip_to_mac_label=None,
     **kwargs,
 ):
     if purdue_violations is None: purdue_violations = []
@@ -237,9 +256,11 @@ def perform_analysis(
         [
             "Count",
             "Src_IP",
+            "Src_MAC",
             "Src_Desc",
             "Src_Geo",
             "Dest_IP",
+            "Dest_MAC",
             "Dest_Desc",
             "Dst_Geo",
             "Port",
@@ -283,6 +304,10 @@ def perform_analysis(
         else:
             row.src_geo = ""
             row.dst_geo = ""
+            
+        # Assign MAC addresses based on the IP
+        row.src_mac = ip_to_mac_label.get(row.src_ip, "") if ip_to_mac_label else ""
+        row.dst_mac = ip_to_mac_label.get(row.dest_ip, "") if ip_to_mac_label else ""
             
         src_seg = row.src_desc[2]
         dst_seg = row.dest_desc[2]
@@ -329,12 +354,14 @@ def perform_analysis(
         
         write_row_to_sheet(row, row_index, sheet)
     
-    tab = Table(displayName="AnalysisTable", ref=f"A1:M{len(rows)+1}")
+    tab = Table(displayName="AnalysisTable", ref=f"A1:O{len(rows)+1}")
     sheet.add_table(tab)
 
-    # Hide geolocation columns by default (users can unhide in Excel)
-    sheet.column_dimensions['D'].hidden = True  # Src_Geo
-    sheet.column_dimensions['G'].hidden = True  # Dst_Geo
+    # Hide geolocation and mac columns by default (users can unhide in Excel)
+    sheet.column_dimensions['C'].hidden = True  # Src_MAC
+    sheet.column_dimensions['E'].hidden = True  # Src_Geo
+    sheet.column_dimensions['G'].hidden = True  # Dest_MAC
+    sheet.column_dimensions['I'].hidden = True  # Dst_Geo
 
     # write lookup data to json file for future use
     with open(json_path, "w+") as fp:
@@ -348,44 +375,52 @@ def write_row_to_sheet(row, row_index, sheet):
     src_IP.fill = row.src_desc[1][0]
     src_IP.font = row.src_desc[1][1]
 
-    src_Desc = sheet.cell(row=row_index, column=3, value=row.src_desc[0])
+    src_MAC = sheet.cell(row=row_index, column=3, value=row.src_mac)
+    src_MAC.fill = row.src_desc[1][0]
+    src_MAC.font = row.src_desc[1][1]
+
+    src_Desc = sheet.cell(row=row_index, column=4, value=row.src_desc[0])
     src_Desc.fill = row.src_desc[1][0]
     src_Desc.font = row.src_desc[1][1]
 
     # Add Src_Geo column
-    src_Geo = sheet.cell(row=row_index, column=4, value=row.src_geo)
+    src_Geo = sheet.cell(row=row_index, column=5, value=row.src_geo)
     src_Geo.fill = row.src_desc[1][0]
     src_Geo.font = row.src_desc[1][1]
 
-    dest_IP = sheet.cell(row=row_index, column=5, value=row.dest_ip)
+    dest_IP = sheet.cell(row=row_index, column=6, value=row.dest_ip)
     dest_IP.fill = row.dest_desc[1][0]
     dest_IP.font = row.dest_desc[1][1]
 
-    dest_Desc = sheet.cell(row=row_index, column=6, value=row.dest_desc[0])
+    dest_MAC = sheet.cell(row=row_index, column=7, value=row.dst_mac)
+    dest_MAC.fill = row.dest_desc[1][0]
+    dest_MAC.font = row.dest_desc[1][1]
+
+    dest_Desc = sheet.cell(row=row_index, column=8, value=row.dest_desc[0])
     dest_Desc.fill = row.dest_desc[1][0]
     dest_Desc.font = row.dest_desc[1][1]
 
     # Add Dst_Geo column
-    dst_Geo = sheet.cell(row=row_index, column=7, value=row.dst_geo)
+    dst_Geo = sheet.cell(row=row_index, column=9, value=row.dst_geo)
     dst_Geo.fill = row.dest_desc[1][0]
     dst_Geo.font = row.dest_desc[1][1]
 
-    sheet.cell(row=row_index, column=8, value=int(row.port))
+    sheet.cell(row=row_index, column=10, value=int(row.port))
 
-    service = sheet.cell(row=row_index, column=9, value=row.service[0])
+    service = sheet.cell(row=row_index, column=11, value=row.service[0])
     service.fill = row.service[1][0]
     service.font = row.service[1][1]
 
-    sheet.cell(row=row_index, column=10, value=row.proto)
+    sheet.cell(row=row_index, column=12, value=row.proto)
 
-    conn_State = sheet.cell(row=row_index, column=11, value=row.conn[0])
+    conn_State = sheet.cell(row=row_index, column=13, value=row.conn[0])
     conn_State.fill = row.conn[1][0]
     conn_State.font = row.conn[1][1]
     
-    sheet.cell(row=row_index, column=12, value=row.direction)
+    sheet.cell(row=row_index, column=14, value=row.direction)
 
     # Write the note (either existing or empty string)
-    sheet.cell(row=row_index, column=13, value=row.notes)
+    sheet.cell(row=row_index, column=15, value=row.notes)
 
 
 def handle_service(row, services):
@@ -520,7 +555,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
                     ext_dns_cache[ip_to_check] = "Unresolved external address"
                     ALREADY_UNRESOLVED.append(ip_to_check)
             
-            desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR, "External", "L5")
+            desc_to_change = (resolution, EXTERNAL_NETWORK_CELL_COLOR, "External", "7")
     return desc_to_change
 
 
@@ -865,6 +900,33 @@ def make_sheet(wb, sheet_name, idx=None):
     if sheet_name in wb.sheetnames:
         wb.remove(wb[sheet_name])
     return wb.create_sheet(sheet_name, index=idx)
+
+
+
+
+
+def write_data_layer_sheet(zeek_df, wb):
+    import pandas as pd
+    from openpyxl.worksheet.table import Table
+    
+    # Group by src_mac, dst_mac, and conn state to count unique connections
+    df_grouped = zeek_df.groupby(['src_mac', 'dst_mac', 'conn']).size().reset_index(name='count')
+    df_grouped = df_grouped.sort_values(by='count', ascending=False)
+    
+    sheet = make_sheet(wb, "Data_layer")
+    sheet.append(["Count", "Source MAC", "Destination MAC", "Connection State"])
+    
+    for index, row in enumerate(df_grouped.itertuples(index=False), start=2):
+        sheet.cell(row=index, column=1, value=row.count)
+        sheet.cell(row=index, column=2, value=row.src_mac)
+        sheet.cell(row=index, column=3, value=row.dst_mac)
+        sheet.cell(row=index, column=4, value=row.conn)
+        
+    if len(df_grouped) > 0:
+        tab = Table(displayName="DataLayerTable", ref=f"A1:D{len(df_grouped)+1}")
+        sheet.add_table(tab)
+        
+    auto_adjust_width(sheet)
 
 
 def auto_adjust_width(sheet, width=40):
