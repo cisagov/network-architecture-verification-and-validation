@@ -29,10 +29,12 @@ DATA_PKL_FILE = os.path.join(os.path.dirname(__file__), "data", "data.pkl")
 COL_NAMES = [
     "Count",
     "Src_IP",
-    "Src_Desc",
+    "Src_Hostname",
+    "Src_Network",
     "Src_Geo",
     "Dest_IP",
-    "Dest_Desc",
+    "Dst_Hostname",
+    "Dst_Network",
     "Dst_Geo",
     "Port",
     "Service",
@@ -67,6 +69,13 @@ UNKNOWN_EXTERNAL_CELL_COLOR = (
 )
 ALREADY_UNRESOLVED = list()
 
+
+def _apply_header_style(cell):
+    """Apply header styling without using a NamedStyle, avoiding duplicate-style errors
+    when writing to an existing workbook that already has 'header_style' registered."""
+    cell.font = openpyxl.styles.Font(name="Calibri", size=11, bold=True)
+    cell.fill = openpyxl.styles.PatternFill("solid", fgColor="4286F4")
+
 @timeit
 def get_workbook(file_name):
     """Create the blank Inventory and Segment sheets for data input into the tool"""
@@ -78,13 +87,13 @@ def get_workbook(file_name):
         inv_sheet.title = "Inventory Input"
         seg_sheet = wb.create_sheet("Segments")
 
-        inv_sheet.cell(row=1, column=1, value="IP").style = HEADER_STYLE
-        inv_sheet.cell(row=1, column=2, value="Name").style = HEADER_STYLE
+        _apply_header_style(inv_sheet.cell(row=1, column=1, value="IP"))
+        _apply_header_style(inv_sheet.cell(row=1, column=2, value="Name"))
 
-        seg_sheet.cell(row=1, column=1, value="Name").style = HEADER_STYLE
-        seg_sheet.cell(row=1, column=2, value="Description").style = HEADER_STYLE
-        seg_sheet.cell(row=1, column=3, value="CIDR").style = HEADER_STYLE
-        seg_sheet.cell(row=1, column=4, value="Purdue Level").style = HEADER_STYLE
+        _apply_header_style(seg_sheet.cell(row=1, column=1, value="Name"))
+        _apply_header_style(seg_sheet.cell(row=1, column=2, value="Description"))
+        _apply_header_style(seg_sheet.cell(row=1, column=3, value="CIDR"))
+        _apply_header_style(seg_sheet.cell(row=1, column=4, value="Purdue Level"))
     return wb
 
 
@@ -272,14 +281,19 @@ def perform_analysis(
             "Count",
             "Src_IP",
             "Src_MAC",
-            "Src_Desc",
+            "Src_Hostname",
+            "Src_Network",
+            "Src_Purdue",
             "Src_Geo",
             "Dest_IP",
             "Dest_MAC",
-            "Dest_Desc",
+            "Dst_Hostname",
+            "Dst_Network",
+            "Dst_Purdue",
             "Dst_Geo",
             "Port",
             "Service",
+            "Service_Desc",
             "Proto",
             "Conn_State",
             "Direction",
@@ -297,7 +311,7 @@ def perform_analysis(
     # Create IP result cache (optimization)
     ip_result_cache = {}
     
-    warning_msg("this may take awhile...")
+    warning_msg("this may take a while...")
     for row_index, row in enumerate(tqdm(rows), start=2):
         # Use IP result cache to avoid re-processing same IPs
         if row.src_ip not in ip_result_cache:
@@ -389,14 +403,17 @@ def perform_analysis(
         
         write_row_to_sheet(row, row_index, sheet)
     
-    tab = Table(displayName="AnalysisTable", ref=f"A1:O{len(rows)+1}")
+    tab = Table(displayName="AnalysisTable", ref=f"A1:T{len(rows)+1}")
     sheet.add_table(tab)
 
     # Hide geolocation and mac columns by default (users can unhide in Excel)
     sheet.column_dimensions['C'].hidden = True  # Src_MAC
-    sheet.column_dimensions['E'].hidden = True  # Src_Geo
-    sheet.column_dimensions['G'].hidden = True  # Dest_MAC
-    sheet.column_dimensions['I'].hidden = True  # Dst_Geo
+    sheet.column_dimensions['F'].hidden = True  # Src_Purdue
+    sheet.column_dimensions['G'].hidden = True  # Src_Geo
+    sheet.column_dimensions['I'].hidden = True  # Dest_MAC
+    sheet.column_dimensions['L'].hidden = True  # Dst_Purdue
+    sheet.column_dimensions['M'].hidden = True  # Dst_Geo
+    sheet.column_dimensions['P'].hidden = True  # Service_Desc
 
     # write lookup data to json file for future use
     with open(json_path, "w+") as fp:
@@ -414,48 +431,76 @@ def write_row_to_sheet(row, row_index, sheet):
     src_MAC.fill = row.src_desc[1][0]
     src_MAC.font = row.src_desc[1][1]
 
-    src_Desc = sheet.cell(row=row_index, column=4, value=row.src_desc[0])
-    src_Desc.fill = row.src_desc[1][0]
-    src_Desc.font = row.src_desc[1][1]
+    src_Host = sheet.cell(row=row_index, column=4, value=row.src_desc[0])
+    src_Host.fill = row.src_desc[1][0]
+    src_Host.font = row.src_desc[1][1]
+
+    src_Network = sheet.cell(row=row_index, column=5, value=row.src_desc[2])
+    src_Network.fill = row.src_desc[1][0]
+    src_Network.font = row.src_desc[1][1]
+
+    src_Purdue = sheet.cell(row=row_index, column=6, value=row.src_desc[3])
+    src_Purdue.fill = row.src_desc[1][0]
+    src_Purdue.font = row.src_desc[1][1]
 
     # Add Src_Geo column
-    src_Geo = sheet.cell(row=row_index, column=5, value=row.src_geo)
+    src_Geo = sheet.cell(row=row_index, column=7, value=row.src_geo)
     src_Geo.fill = row.src_desc[1][0]
     src_Geo.font = row.src_desc[1][1]
 
-    dest_IP = sheet.cell(row=row_index, column=6, value=row.dest_ip)
+    dest_IP = sheet.cell(row=row_index, column=8, value=row.dest_ip)
     dest_IP.fill = row.dest_desc[1][0]
     dest_IP.font = row.dest_desc[1][1]
 
-    dest_MAC = sheet.cell(row=row_index, column=7, value=row.dst_mac)
+    dest_MAC = sheet.cell(row=row_index, column=9, value=row.dst_mac)
     dest_MAC.fill = row.dest_desc[1][0]
     dest_MAC.font = row.dest_desc[1][1]
 
-    dest_Desc = sheet.cell(row=row_index, column=8, value=row.dest_desc[0])
-    dest_Desc.fill = row.dest_desc[1][0]
-    dest_Desc.font = row.dest_desc[1][1]
+    dest_Host = sheet.cell(row=row_index, column=10, value=row.dest_desc[0])
+    dest_Host.fill = row.dest_desc[1][0]
+    dest_Host.font = row.dest_desc[1][1]
+
+    dest_Network = sheet.cell(row=row_index, column=11, value=row.dest_desc[2])
+    dest_Network.fill = row.dest_desc[1][0]
+    dest_Network.font = row.dest_desc[1][1]
+
+    dst_Purdue = sheet.cell(row=row_index, column=12, value=row.dest_desc[3])
+    dst_Purdue.fill = row.dest_desc[1][0]
+    dst_Purdue.font = row.dest_desc[1][1]
 
     # Add Dst_Geo column
-    dst_Geo = sheet.cell(row=row_index, column=9, value=row.dst_geo)
+    dst_Geo = sheet.cell(row=row_index, column=13, value=row.dst_geo)
     dst_Geo.fill = row.dest_desc[1][0]
     dst_Geo.font = row.dest_desc[1][1]
 
-    sheet.cell(row=row_index, column=10, value=int(row.port))
+    sheet.cell(row=row_index, column=14, value=int(row.port))
 
-    service = sheet.cell(row=row_index, column=11, value=row.service[0])
+    service_val = str(row.service[0])
+    service_desc = ""
+    if "(" in service_val and ")" in service_val:
+        start_idx = service_val.find("(")
+        end_idx = service_val.rfind(")")
+        service_desc = service_val[start_idx+1:end_idx].strip()
+        service_val = service_val[:start_idx].strip()
+
+    service = sheet.cell(row=row_index, column=15, value=service_val)
     service.fill = row.service[1][0]
     service.font = row.service[1][1]
 
-    sheet.cell(row=row_index, column=12, value=row.proto)
+    service_desc_cell = sheet.cell(row=row_index, column=16, value=service_desc)
+    service_desc_cell.fill = row.service[1][0]
+    service_desc_cell.font = row.service[1][1]
 
-    conn_State = sheet.cell(row=row_index, column=13, value=row.conn[0])
+    sheet.cell(row=row_index, column=17, value=row.proto)
+
+    conn_State = sheet.cell(row=row_index, column=18, value=row.conn[0])
     conn_State.fill = row.conn[1][0]
     conn_State.font = row.conn[1][1]
     
-    sheet.cell(row=row_index, column=14, value=row.direction)
+    sheet.cell(row=row_index, column=19, value=row.direction)
 
     # Write the note (either existing or empty string)
-    sheet.cell(row=row_index, column=15, value=row.notes)
+    sheet.cell(row=row_index, column=20, value=row.notes)
 
 
 def handle_service(row, services):
@@ -548,7 +593,7 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
             elif ip_to_check in inventory:
                 resolution = inventory[ip_to_check].name
             else:
-                resolution = f"Unknown device in {segment.name} network"
+                resolution = f"Unknown device"
                 unk_int_IPs.add(ip_to_check)
             if not netaddr.IPAddress(ip_to_check).is_ipv4_private_use():
                 resolution = resolution + " {Non-Priv IP}"
@@ -798,13 +843,16 @@ def write_purdue_violations_sheet(violations, wb):
         [
             "Count",
             "Src_IP",
-            "Src_Desc",
+            "Src_Hostname",
+            "Src_Network",
             "Src_Purdue",
             "Dest_IP",
-            "Dest_Desc",
+            "Dst_Hostname",
+            "Dst_Network",
             "Dst_Purdue",
             "Port",
             "Service",
+            "Service Description",
             "Proto",
             "Direction",
         ]
@@ -816,33 +864,55 @@ def write_purdue_violations_sheet(violations, wb):
         src_IP.fill = row.src_desc[1][0]
         src_IP.font = row.src_desc[1][1]
         
-        src_Desc = sheet.cell(row=row_index, column=3, value=row.src_desc[0])
-        src_Desc.fill = row.src_desc[1][0]
-        src_Desc.font = row.src_desc[1][1]
+        src_Host = sheet.cell(row=row_index, column=3, value=row.src_desc[0])
+        src_Host.fill = row.src_desc[1][0]
+        src_Host.font = row.src_desc[1][1]
         
-        sheet.cell(row=row_index, column=4, value=row.src_desc[3])
+        src_Network = sheet.cell(row=row_index, column=4, value=row.src_desc[2])
+        src_Network.fill = row.src_desc[1][0]
+        src_Network.font = row.src_desc[1][1]
         
-        dest_IP = sheet.cell(row=row_index, column=5, value=row.dest_ip)
+        sheet.cell(row=row_index, column=5, value=row.src_desc[3])
+        
+        dest_IP = sheet.cell(row=row_index, column=6, value=row.dest_ip)
         dest_IP.fill = row.dest_desc[1][0]
         dest_IP.font = row.dest_desc[1][1]
         
-        dest_Desc = sheet.cell(row=row_index, column=6, value=row.dest_desc[0])
-        dest_Desc.fill = row.dest_desc[1][0]
-        dest_Desc.font = row.dest_desc[1][1]
+        dest_Host = sheet.cell(row=row_index, column=7, value=row.dest_desc[0])
+        dest_Host.fill = row.dest_desc[1][0]
+        dest_Host.font = row.dest_desc[1][1]
         
-        sheet.cell(row=row_index, column=7, value=row.dest_desc[3])
-        sheet.cell(row=row_index, column=8, value=int(row.port))
+        dest_Network = sheet.cell(row=row_index, column=8, value=row.dest_desc[2])
+        dest_Network.fill = row.dest_desc[1][0]
+        dest_Network.font = row.dest_desc[1][1]
         
-        service = sheet.cell(row=row_index, column=9, value=row.service[0])
+        sheet.cell(row=row_index, column=9, value=row.dest_desc[3])
+        sheet.cell(row=row_index, column=10, value=int(row.port))
+        
+        service_val = str(row.service[0])
+        service_desc = ""
+        if "(" in service_val and ")" in service_val:
+            start_idx = service_val.find("(")
+            end_idx = service_val.rfind(")")
+            service_desc = service_val[start_idx+1:end_idx].strip()
+            service_val = service_val[:start_idx].strip()
+
+        service = sheet.cell(row=row_index, column=11, value=service_val)
         service.fill = row.service[1][0]
         service.font = row.service[1][1]
         
-        sheet.cell(row=row_index, column=10, value=row.proto)
-        sheet.cell(row=row_index, column=11, value=row.direction)
+        service_desc_cell = sheet.cell(row=row_index, column=12, value=service_desc)
+        service_desc_cell.fill = row.service[1][0]
+        service_desc_cell.font = row.service[1][1]
+        
+        sheet.cell(row=row_index, column=13, value=row.proto)
+        sheet.cell(row=row_index, column=14, value=row.direction)
         
     if len(violations) > 0:
-        tab = Table(displayName="PurdueViolationsTable", ref=f"A1:K{len(violations)+1}")
+        tab = Table(displayName="PurdueViolationsTable", ref=f"A1:N{len(violations)+1}")
         sheet.add_table(tab)
+        
+    sheet.column_dimensions['L'].hidden = True
     auto_adjust_width(sheet)
 
 def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentation Flows", link_colors=None):
@@ -1040,7 +1110,7 @@ def write_segments_sheet(segments, wb):
     sheet = make_sheet(wb, "Segments", idx=1)
     sheet.append(["Name", "Description", "CIDR", "Purdue Level"])
     for cell in sheet[1]:
-        cell.style = HEADER_STYLE
+        _apply_header_style(cell)
         
     for index, seg in enumerate(segments, start=2):
         sheet.cell(row=index, column=1, value=seg.name)
@@ -1050,7 +1120,13 @@ def write_segments_sheet(segments, wb):
         
         sheet.cell(row=index, column=1).fill = seg.color[0]
         sheet.cell(row=index, column=1).font = seg.color[1]
-        
+        sheet.cell(row=index, column=2).fill = seg.color[0]
+        sheet.cell(row=index, column=2).font = seg.color[1]
+        sheet.cell(row=index, column=3).fill = seg.color[0]
+        sheet.cell(row=index, column=3).font = seg.color[1]
+        sheet.cell(row=index, column=4).fill = seg.color[0]
+        sheet.cell(row=index, column=4).font = seg.color[1]
+            
     auto_adjust_width(sheet)
 
 def color_inventory_sheet(wb, inventory_tab_name, segments):
