@@ -8,7 +8,10 @@ from collections import Counter
 import socket
 from copy import copy
 import json
-import pickle
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    import tomli as tomllib  # Backport for Python 3.10 and older
 import string
 import random
 
@@ -25,7 +28,7 @@ from navv.message_handler import warning_msg, info_msg
 from navv.geolocation import Geolocator
 
 
-DATA_PKL_FILE = os.path.join(os.path.dirname(__file__), "data", "data.pkl")
+DATA_TOML_FILE = os.path.join(os.path.dirname(__file__), "data", "data.toml")
 COL_NAMES = [
     "Count",
     "Src_IP",
@@ -135,9 +138,48 @@ def get_segments_data(ws):
 
 
 def get_package_data():
-    """Load services and conn_states data into memory"""
-    with open(DATA_PKL_FILE, "rb") as f:
-        services, conn_states = pickle.load(f)
+    """Load services and conn_states data into memory from TOML file"""
+    _SERVICE_DEFAULTS = {
+        "fgColor": "00000000",
+        "bgColor": "00000000",
+        "fontName": "Calibri",
+        "fontSize": 11.0,
+        "bold": False,
+        "fontColor": "FF000000",
+    }
+
+    def _make_fill_font(entry, defaults):
+        fg = entry.get("fgColor", defaults["fgColor"])
+        bg = entry.get("bgColor", defaults["bgColor"])
+        font_name = entry.get("fontName", defaults["fontName"])
+        font_size = entry.get("fontSize", defaults["fontSize"])
+        bold = entry.get("bold", defaults["bold"])
+        font_color = entry.get("fontColor", defaults["fontColor"])
+        fill = (
+            openpyxl.styles.PatternFill("solid", fgColor=fg)
+            if fg != "00000000"
+            else openpyxl.styles.PatternFill()
+        )
+        font = openpyxl.styles.Font(name=font_name, size=font_size, bold=bold, color=font_color)
+        return (fill, font)
+
+    with open(DATA_TOML_FILE, "rb") as f:
+        data = tomllib.load(f)
+
+    # Keep port keys as strings: handle_service receives row.port as a string
+    # (it originates from splitting a tab-delimited string in create_analysis_array).
+    services = {}
+    for port_str, protos in data["services"].items():
+        services[port_str] = {}
+        for proto, entry in protos.items():
+            fill_font = _make_fill_font(entry, _SERVICE_DEFAULTS)
+            services[port_str][proto] = (entry["name"], fill_font)
+
+    conn_states = {}
+    for state, entry in data["states"].items():
+        fill_font = _make_fill_font(entry, _SERVICE_DEFAULTS)
+        conn_states[state] = (fill_font[0], fill_font[1], entry["description"])
+
     return services, conn_states
 
 
