@@ -10,6 +10,7 @@ from copy import copy
 import json
 import pickle
 import string
+import random
 
 import openpyxl
 import openpyxl.styles
@@ -240,14 +241,28 @@ def perform_analysis(
     purdue_violations=None,
     sankey_data=None,
     verified_sankey_data=None,
+    macro_sankey_data=None,
+    verified_macro_sankey_data=None,
+    macro_link_colors=None,
     geolocator=None,
     ext_dns_cache=None,
     ip_to_mac_label=None,
     **kwargs,
 ):
+    def normalize_purdue(level_str, segment_name):
+        level_str = str(level_str).strip()
+        if segment_name == "External" or str(level_str).upper().replace("L", "") == "7":
+            return "5"
+        if level_str == "Unknown":
+            return "Unknown"
+        return str(level_str).upper().replace("L", "")
+
     if purdue_violations is None: purdue_violations = []
     if sankey_data is None: sankey_data = {}
     if verified_sankey_data is None: verified_sankey_data = {}
+    if macro_sankey_data is None: macro_sankey_data = {}
+    if verified_macro_sankey_data is None: verified_macro_sankey_data = {}
+    if macro_link_colors is None: macro_link_colors = {}
     # Read existing notes before creating new sheet
     existing_notes = read_existing_notes(wb)
     
@@ -331,16 +346,36 @@ def perform_analysis(
         
         if row.conn in ["SF", "S1", "OTH"]:
             verified_sankey_data[sankey_key] = verified_sankey_data.get(sankey_key, 0) + int(row.count)
+            
+        # Macro Sankey Logic
+        sp_clean = normalize_purdue(row.src_desc[3], src_seg)
+        dp_clean = normalize_purdue(row.dest_desc[3], dst_seg)
+        
+        macro_src_node = f"Level {sp_clean}" if sp_clean != "Unknown" else "Unknown"
+        macro_dst_node = f"Level {dp_clean}" if dp_clean != "Unknown" else "Unknown"
+        
+        if macro_src_node != "Unknown" and macro_dst_node != "Unknown":
+            macro_links = []
+            macro_links.append((sankey_src, macro_src_node))
+            if sp_clean != dp_clean:
+                macro_links.append((macro_src_node, macro_dst_node))
+            macro_links.append((macro_dst_node, sankey_dst))
+            
+            for link in macro_links:
+                macro_sankey_data[link] = macro_sankey_data.get(link, 0) + int(row.count)
+                if row.conn in ["SF", "S1", "OTH"]:
+                    verified_macro_sankey_data[link] = verified_macro_sankey_data.get(link, 0) + int(row.count)
         
         # Check Purdue violation
         try:
-            sp = str(row.src_desc[3]).upper().replace("L", "")
-            dp = str(row.dest_desc[3]).upper().replace("L", "")
-            if sp != "UNKNOWN" and dp != "UNKNOWN":
-                s_lvl = float(sp)
-                d_lvl = float(dp)
+            if sp_clean != "Unknown" and dp_clean != "Unknown":
+                s_lvl = float(sp_clean)
+                d_lvl = float(dp_clean)
                 if abs(s_lvl - d_lvl) > 1.5:
                     purdue_violations.append(row)
+                    # Mark the specific layer-to-layer link as a violation (red)
+                    violating_link = (macro_src_node, macro_dst_node)
+                    macro_link_colors[violating_link] = "rgba(255, 0, 0, 0.4)"
         except Exception:
             pass
         
@@ -810,7 +845,7 @@ def write_purdue_violations_sheet(violations, wb):
         sheet.add_table(tab)
     auto_adjust_width(sheet)
 
-def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentation Flows"):
+def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentation Flows", link_colors=None):
     nodes = set()
     for (src, dst) in sankey_data.keys():
         nodes.add(src)
@@ -822,12 +857,17 @@ def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentati
     sources = []
     targets = []
     values = []
+    colors = []
     
     for (src, dst), count in sankey_data.items():
         sources.append(node_indices[src])
         targets.append(node_indices[dst])
         values.append(count)
-        
+        if link_colors and (src, dst) in link_colors:
+            colors.append(link_colors[(src, dst)])
+        else:
+            colors.append("rgba(150, 150, 150, 0.3)")
+            
     total_connections = sum(values) if values else 1
     
     # Calculate percentage for each node and update labels
@@ -845,7 +885,8 @@ def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentati
         "sources": sources,
         "targets": targets,
         "values": values,
-        "percentages": percentages
+        "percentages": percentages,
+        "colors": colors
     }
     import json
     
@@ -878,6 +919,7 @@ def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentati
                     target: data.targets,
                     value: data.values,
                     customdata: data.percentages,
+                    color: data.colors,
                     hovertemplate: '%{{source.label}} &rarr; %{{target.label}}<br />Connections: %{{value}}<br />Percent of Total: %{{customdata}}%<extra></extra>'
                 }}
             }};
@@ -936,3 +978,97 @@ def auto_adjust_width(sheet, width=40):
         sheet.column_dimensions[col[0].column_letter].width = (
             width if width < max_width else max_width
         )
+
+def auto_discover_segments(zeek_df, segments):
+    def get_random_color():
+        r = random.randint(50, 200)
+        g = random.randint(50, 200)
+        b = random.randint(50, 200)
+        return f"FF{r:02X}{g:02X}{b:02X}"
+        
+    def is_default_color(fill):
+        if not fill or fill.patternType is None: return True
+        rgb = getattr(fill.fgColor, 'rgb', None)
+        if not rgb: return True
+        rgb = str(rgb).upper()
+        return rgb in ["00000000", "FFFFFFFF", "FFFFFF00", "00FFFFFF", "FF000000", "FFFF0000", "FFFFFF"]
+        
+    # Recolor existing segments
+    for seg in segments:
+        fill = seg.color[0]
+        if is_default_color(fill):
+            new_fill = openpyxl.styles.PatternFill("solid", fgColor=get_random_color())
+            new_font = openpyxl.styles.Font(name="Calibri", size=11, color="000000")
+            seg.color = [new_fill, new_font]
+            
+    # Auto-discover subnets
+    import pandas as pd
+    all_ips = set(pd.concat([zeek_df['src_ip'], zeek_df['dst_ip']]))
+    discovered_subnets = set()
+    
+    for ip in all_ips:
+        try:
+            ip_obj = netaddr.IPAddress(ip)
+            if ip_obj.is_ipv4_private_use():
+                found = False
+                for seg in segments:
+                    if ip_obj in seg.network:
+                        found = True
+                        break
+                if not found:
+                    subnet = netaddr.IPNetwork(f"{ip}/24").cidr
+                    discovered_subnets.add(str(subnet))
+        except Exception:
+            pass
+            
+    for subnet in discovered_subnets:
+        new_fill = openpyxl.styles.PatternFill("solid", fgColor=get_random_color())
+        new_font = openpyxl.styles.Font(name="Calibri", size=11, color="000000")
+        segments.append(
+            data_types.Segment(
+                name=f"Auto-Discovered {subnet}",
+                description="Automatically discovered internal subnet",
+                network=netaddr.IPNetwork(subnet),
+                color=[new_fill, new_font],
+                purdue_level="Unknown"
+            )
+        )
+        
+    return segments
+
+def write_segments_sheet(segments, wb):
+    sheet = make_sheet(wb, "Segments", idx=1)
+    sheet.append(["Name", "Description", "CIDR", "Purdue Level"])
+    for cell in sheet[1]:
+        cell.style = HEADER_STYLE
+        
+    for index, seg in enumerate(segments, start=2):
+        sheet.cell(row=index, column=1, value=seg.name)
+        sheet.cell(row=index, column=2, value=seg.description)
+        sheet.cell(row=index, column=3, value=str(seg.network))
+        sheet.cell(row=index, column=4, value=seg.purdue_level)
+        
+        sheet.cell(row=index, column=1).fill = seg.color[0]
+        sheet.cell(row=index, column=1).font = seg.color[1]
+        
+    auto_adjust_width(sheet)
+
+def color_inventory_sheet(wb, inventory_tab_name, segments):
+    if inventory_tab_name not in wb.sheetnames:
+        return
+    sheet = wb[inventory_tab_name]
+    for row in sheet.iter_rows(min_row=2):
+        if not row[0].value:
+            continue
+        ip_val = str(row[0].value).strip()
+        try:
+            ip_obj = netaddr.IPAddress(ip_val)
+            for seg in segments:
+                if ip_obj in seg.network:
+                    for cell in row:
+                        if cell.value:
+                            cell.fill = seg.color[0]
+                            cell.font = seg.color[1]
+                    break
+        except Exception:
+            pass

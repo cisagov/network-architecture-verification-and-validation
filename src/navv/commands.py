@@ -29,6 +29,9 @@ from navv.spreadsheet_tools import (
     write_legend_sheet,
     write_data_layer_sheet,
     generate_sankey_html,
+    auto_discover_segments,
+    write_segments_sheet,
+    color_inventory_sheet,
 )
 from navv.zeek import (
     get_conn_data,
@@ -162,11 +165,19 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     # Turn zeekcut data into rows for spreadsheet
     rows = create_analysis_array(zeek_data, timer=timer_data)
 
+    # Auto-discover and recolor segments
+    segments = auto_discover_segments(zeek_df, segments)
+    write_segments_sheet(segments, wb)
+    color_inventory_sheet(wb, inventory_tab_name, segments)
+
     ext_IPs = set()
     unk_int_IPs = set()
     purdue_violations = []
     sankey_data = {}
     verified_sankey_data = {}
+    macro_sankey_data = {}
+    verified_macro_sankey_data = {}
+    macro_link_colors = {}
     perform_analysis(
         wb,
         rows,
@@ -181,6 +192,9 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
         purdue_violations=purdue_violations,
         sankey_data=sankey_data,
         verified_sankey_data=verified_sankey_data,
+        macro_sankey_data=macro_sankey_data,
+        verified_macro_sankey_data=verified_macro_sankey_data,
+        macro_link_colors=macro_link_colors,
         geolocator=geolocator,
         ext_dns_cache=ext_dns_cache,
         ip_to_mac_label=ip_to_mac_label,
@@ -201,6 +215,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     
     generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"), title="Unfiltered NAVV Purdue Segmentation Flows")
     generate_sankey_html(verified_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_verified.html"), title="Verified Connections NAVV Purdue Segmentation Flows")
+    generate_sankey_html(macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro.html"), title="Unfiltered NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
+    generate_sankey_html(verified_macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro_verified.html"), title="Verified Connections NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
 
     auto_adjust_width(wb["Analysis"])
 
