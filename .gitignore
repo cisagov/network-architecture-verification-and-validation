@@ -33,3 +33,9 @@ test_pcap/
 *.log
 
 .venv_wsl/
+.venv_graphify/
+
+## Agent & Graphify ##
+.agents/
+graphify-out/
+GRAPH_REPORT.md

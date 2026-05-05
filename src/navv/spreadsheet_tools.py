@@ -1093,10 +1093,21 @@ def auto_adjust_width(sheet, width=40):
 
 def auto_discover_segments(zeek_df, segments):
     def get_random_color():
-        r = random.randint(50, 200)
-        g = random.randint(50, 200)
-        b = random.randint(50, 200)
-        return f"FF{r:02X}{g:02X}{b:02X}"
+        # Slightly wider range for better variety
+        r = random.randint(30, 220)
+        g = random.randint(30, 220)
+        b = random.randint(30, 220)
+        return f"{r:02X}{g:02X}{b:02X}"
+
+    def get_contrast_color(hex_rgb):
+        # Calculate perceived luminance (standard formula)
+        # hex_rgb is expected to be 6 chars (RRGGBB)
+        r = int(hex_rgb[0:2], 16)
+        g = int(hex_rgb[2:4], 16)
+        b = int(hex_rgb[4:6], 16)
+        luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        # Use white font for dark backgrounds (luminance < 0.5), black for light
+        return "FFFFFFFF" if luminance < 0.5 else "FF000000"
         
     def is_default_color(fill):
         if not fill or fill.patternType is None: return True
@@ -1109,8 +1120,9 @@ def auto_discover_segments(zeek_df, segments):
     for seg in segments:
         fill = seg.color[0]
         if is_default_color(fill):
-            new_fill = openpyxl.styles.PatternFill("solid", fgColor=get_random_color())
-            new_font = openpyxl.styles.Font(name="Calibri", size=11, color="000000")
+            color_hex = get_random_color()
+            new_fill = openpyxl.styles.PatternFill("solid", fgColor=f"FF{color_hex}")
+            new_font = openpyxl.styles.Font(name="Calibri", size=11, color=get_contrast_color(color_hex))
             seg.color = [new_fill, new_font]
             
     # Auto-discover subnets
@@ -1134,8 +1146,9 @@ def auto_discover_segments(zeek_df, segments):
             pass
             
     for subnet in discovered_subnets:
-        new_fill = openpyxl.styles.PatternFill("solid", fgColor=get_random_color())
-        new_font = openpyxl.styles.Font(name="Calibri", size=11, color="000000")
+        color_hex = get_random_color()
+        new_fill = openpyxl.styles.PatternFill("solid", fgColor=f"FF{color_hex}")
+        new_font = openpyxl.styles.Font(name="Calibri", size=11, color=get_contrast_color(color_hex))
         segments.append(
             data_types.Segment(
                 name=f"Auto-Discovered {subnet}",
