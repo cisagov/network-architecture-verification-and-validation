@@ -192,20 +192,6 @@ When available, the NAVV tool will use responses for queries found in Zeek's `dn
 > [!NOTE]
 > **Independent Operation:** While NAVV 4.0 leverages advanced AI-driven development workflows for maintenance and architectural integrity, **no AI tools, agents, or subscriptions are required to install, run, or use the software.** It is a standard Python application built for reliability in offline and secure environments.
 
-This project is maintained using a **Four Pillars** AI strategy, ensuring high code quality and architectural integrity. This approach allows AI agents (like Google Antigravity) to operate with deep context and precision.
-
-- **[Graphify](https://github.com/Dbones202/graphify)**: Generates a searchable knowledge graph of the codebase. A current snapshot of the architectural health and community clusters is available in [graphify-out/GRAPH_REPORT.md](./graphify-out/GRAPH_REPORT.md).
-- **[GitNexus](https://github.com/Dbones202/gitnexus)**: Orchestrates advanced code analysis, providing API route mapping and blast-radius assessment for every major refactor.
-- **GitHub Integration**: Leverages the GitHub MCP for systematic issue management and PR coordination following Sentry-style engineering practices.
-- **Anytype Persistence**: Development context, End-of-Session (EOS) summaries, and long-term memory are synced to **Donovan's Space** via the Anytype MCP for cross-device consistency.
-
-### Working with AI Agents ###
-
-If you are contributing using an AI agent:
-1. **Initialize the Graph**: Run the `graphify` skill to ensure your local knowledge graph is in sync with the latest code changes.
-2. **Impact Analysis**: Use `gitnexus` to check the impact of your proposed changes before committing.
-3. **EOS Sync**: Always run the `eos-summary` workflow to sync progress to Anytype.
-
 ## Docker ##
 
 See [`docker/README.md`](./docker/README.md) for setup and instructions for running the NAVV tool in Docker.
