@@ -12,6 +12,10 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional
+import urllib.request
+import urllib.error
+import gzip
+from datetime import datetime
 from navv.message_handler import warning_msg, success_msg, error_msg
 
 
@@ -43,69 +47,145 @@ class Geolocator:
             enable_cache: Enable caching of lookup results for performance.
         """
         self.reader = None
+        self.city_reader = None
+        self.asn_reader = None
         self.enabled = False
         self.enable_cache = enable_cache
         self._cache: Dict[str, Optional[str]] = {}
+        self._ext_cache: Dict[str, Dict[str, str]] = {}
 
         if not MAXMINDDB_AVAILABLE:
             warning_msg("maxminddb library not available. Install with: pip install maxminddb")
-            warning_msg("Geolocation functionality will be disabled.")
             return
+            
+        def is_db_stale(path: Path, max_age_days=45) -> bool:
+            if not path.exists():
+                return True
+            try:
+                reader = maxminddb.open_database(str(path))
+                epoch = reader.metadata().build_epoch
+                reader.close()
+                age = datetime.now().timestamp() - epoch
+                return age > (max_age_days * 86400)
+            except Exception:
+                return True
 
-        # Get the directory where this module is located
-        module_dir = Path(__file__).parent.resolve()
-        
-        # Search for database in common locations
-        search_paths = []
-        if db_path:
-            search_paths.append(Path(db_path))
-        
-        # Add common locations including module directory
-        search_paths.extend([
-            # Same directory as this module (for pip installed in .local)
-            module_dir / "GeoLite2-Country.mmdb",
-            # User home .navv directory
-            Path.home() / ".navv" / "GeoLite2-Country.mmdb",
-            # Current working directory
-            Path.cwd() / "GeoLite2-Country.mmdb",
-            # System-wide locations
-            Path("/usr/local/share/GeoLite2-Country.mmdb"),
-            Path("/usr/share/GeoIP/GeoLite2-Country.mmdb"),
-            Path("/var/lib/GeoIP/GeoLite2-Country.mmdb"),
-        ])
+        def get_previous_month(dt):
+            first = dt.replace(day=1)
+            if first.month == 1:
+                 return first.replace(year=first.year - 1, month=12)
+            return first.replace(month=first.month - 1)
 
-        # Find first existing database
-        for path in search_paths:
-            if path.exists() and path.is_file():
+        def download_dbip_lite(db_type: str, dest_path: Path):
+            import ssl
+            now = datetime.now()
+            url_base = f"https://download.db-ip.com/free/dbip-{db_type}-lite-{{}}.mmdb.gz"
+            months_to_try = [now, get_previous_month(now)]
+            
+            def attempt_download(url, ctx=None):
+                req = urllib.request.Request(url, headers={'User-Agent': 'NAVV/4.0.0'})
+                with urllib.request.urlopen(req, timeout=60, context=ctx) as response:
+                    if response.status == 200:
+                        uncompressed_data = gzip.decompress(response.read())
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(dest_path, "wb") as f:
+                            f.write(uncompressed_data)
+                        return True
+                return False
+
+            for dt in months_to_try:
+                ym = dt.strftime("%Y-%m")
+                url = url_base.format(ym)
                 try:
-                    self.reader = maxminddb.open_database(str(path))
-                    self.enabled = True
-                    if db_path:
-                        success_msg(f"GeoIP database loaded successfully from: {str(path)}")
-                    else:
-                        success_msg("GeoIP database loaded successfully")                        
-                    # MaxMind attribution as required by their license
-                    success_msg("This product includes GeoLite2 Data created by MaxMind, available from https://www.maxmind.com.")
-                    return
+                    warning_msg(f"Downloading DB-IP {db_type.upper()} Lite database from {url}...")
+                    try:
+                        if attempt_download(url):
+                            success_msg(f"Successfully downloaded DB-IP {db_type.upper()} Lite to {dest_path}")
+                            return True
+                    except urllib.error.URLError as e:
+                        if hasattr(e, 'reason') and isinstance(e.reason, ssl.SSLError):
+                            warning_msg("SSL Verification failed. Retrying without SSL verification...")
+                            ctx = ssl.create_default_context()
+                            ctx.check_hostname = False
+                            ctx.verify_mode = ssl.CERT_NONE
+                            if attempt_download(url, ctx):
+                                success_msg(f"Successfully downloaded DB-IP {db_type.upper()} Lite to {dest_path} (Unverified SSL)")
+                                return True
+                        else:
+                            raise e
+                except urllib.error.HTTPError as e:
+                    if e.code == 404: continue
+                    error_msg(f"HTTP Error {e.code} downloading {url}")
+                    break
                 except Exception as e:
-                    error_msg(f"Failed to load GeoIP database from {path}: {e}")
+                     error_msg(f"Error downloading {url}: {e}")
+                     break
+            error_msg(f"Failed to auto-download DB-IP {db_type} database.")
+            return False
 
-        warning_msg("GeoIP database not found in any common location.")
-        warning_msg("Geolocation will be disabled.")
-        
-        # logger.info(
-        #     "Searched locations:\n" +
-        #     "\n".join(f"  - {path}" for path in search_paths[:6])
-        # )
-        # logger.info(
-        #     "To enable geolocation:\n"
-        #     "  1. Sign up at https://www.maxmind.com/en/geolite2/signup\n"
-        #     "  2. Download GeoLite2 Country database (MMDB format)\n"
-        #     f"  3. Place it at one of:\n"
-        #     f"     - {module_dir}/GeoLite2-Country.mmdb (same as geolocation.py)\n"
-        #     f"     - ~/.navv/GeoLite2-Country.mmdb\n"
-        #     f"     - {Path.cwd()}/GeoLite2-Country.mmdb (current directory)"
-        # )
+        # If a specific offline path is provided via CLI (-g), rely completely on that directory
+        if db_path:
+            db_p = Path(db_path)
+            if db_p.is_dir():
+                c_path = db_p / "GeoLite2-Country.mmdb"
+                city_path = db_p / "GeoLite2-City.mmdb"
+                asn_path = db_p / "GeoLite2-ASN.mmdb"
+            else:
+                c_path = db_p
+                city_path = Path(str(db_p).replace("Country", "City"))
+                asn_path = Path(str(db_p).replace("Country", "ASN"))
+                
+            if c_path.exists():
+                try:
+                    self.reader = maxminddb.open_database(str(c_path))
+                    self.enabled = True
+                    success_msg(f"GeoLite2-Country loaded: {c_path}")
+                except Exception: pass
+            if city_path.exists():
+                try:
+                    self.city_reader = maxminddb.open_database(str(city_path))
+                    if not self.enabled: self.reader = self.city_reader
+                    self.enabled = True
+                    success_msg(f"GeoLite2-City loaded: {city_path}")
+                except Exception: pass
+            if asn_path.exists():
+                try:
+                    self.asn_reader = maxminddb.open_database(str(asn_path))
+                    success_msg(f"GeoLite2-ASN loaded: {asn_path}")
+                except Exception: pass
+                
+            if self.enabled:
+                success_msg("Offline MaxMind/DB-IP databases loaded.")
+            else:
+                warning_msg("Geolocation will be disabled.")
+            return
+            
+        # If no offline path, leverage the automatic DB-IP infrastructure
+        navv_dir = Path.home() / ".navv"
+        city_path = navv_dir / "dbip-city-lite.mmdb"
+        asn_path = navv_dir / "dbip-asn-lite.mmdb"
+
+        if is_db_stale(city_path):
+             download_dbip_lite("city", city_path)
+        if is_db_stale(asn_path):
+             download_dbip_lite("asn", asn_path)
+             
+        try:
+             self.city_reader = maxminddb.open_database(str(city_path))
+             self.reader = self.city_reader # City also provides country dict
+             self.enabled = True
+        except Exception:
+             pass
+             
+        try:
+             self.asn_reader = maxminddb.open_database(str(asn_path))
+        except Exception:
+             pass
+
+        if self.enabled:
+             success_msg("IP Geolocation by DB-IP (https://db-ip.com)")
+        else:
+            warning_msg("Networking failure. Geolocation will be disabled.")
 
     def lookup(self, ip_address: str) -> Optional[str]:
         """
@@ -173,6 +253,51 @@ class Geolocator:
             self._cache[ip_address] = result
 
         return result
+
+    def lookup_external(self, ip_address: str) -> Dict[str, str]:
+        """Provides comprehensive location/isp data."""
+        res = {"country": "", "region": "", "city": "", "isp": ""}
+        if not self.enabled:
+            return res
+            
+        if self.enable_cache and ip_address in self._ext_cache:
+            return self._ext_cache[ip_address]
+
+        try:
+            ip_obj = ipaddress.ip_address(ip_address)
+            if self._is_internal_ip_obj(ip_obj):
+                return res
+
+            # Fill country using default country or city reader
+            if self.reader:
+                c_resp = self.reader.get(ip_address)
+                if c_resp:
+                    res["country"] = c_resp.get('country', {}).get('names', {}).get('en', '')
+            
+            # Fill region/city using city reader
+            if self.city_reader:
+                city_resp = self.city_reader.get(ip_address)
+                if city_resp:
+                    if not res["country"]:
+                        res["country"] = city_resp.get('country', {}).get('names', {}).get('en', '')
+                    res["city"] = city_resp.get('city', {}).get('names', {}).get('en', '')
+                    subdivs = city_resp.get('subdivisions', [])
+                    if subdivs:
+                        res["region"] = subdivs[0].get('names', {}).get('en', '')
+                        
+            # Fill isp using asn reader
+            if self.asn_reader:
+                asn_resp = self.asn_reader.get(ip_address)
+                if asn_resp:
+                    res["isp"] = asn_resp.get('autonomous_system_organization', '')
+                    
+        except Exception:
+            pass
+            
+        if self.enable_cache:
+            self._ext_cache[ip_address] = res
+            
+        return res
 
     def is_internal_ip(self, ip_address: str) -> bool:
         """
@@ -277,11 +402,18 @@ class Geolocator:
 
     def close(self):
         """Close the database reader and clear cache."""
-        if self.reader:
+        if self.reader and self.reader != self.city_reader:
             self.reader.close()
-            self.reader = None
+        if self.city_reader:
+            self.city_reader.close()
+        if self.asn_reader:
+            self.asn_reader.close()
+        self.reader = None
+        self.city_reader = None
+        self.asn_reader = None
         self.enabled = False
         self._cache.clear()
+        self._ext_cache.clear()
 
     def __enter__(self):
         """Context manager entry."""

@@ -68,27 +68,73 @@ def get_mac_df(zeek_df: pd.DataFrame):
 
     smac_df = smac_df.rename(columns={'src_mac': 'mac', 'src_ip': 'ip'})
     dmac_df = dmac_df.rename(columns={'dst_mac': 'mac', 'dst_ip': 'ip'})
-    mac_df = smac_df._append(dmac_df, ignore_index=True)
-    mac_df = mac_df.groupby('mac')['ip'].apply(list).reset_index(name='associated_ip')
+    mac_df = pd.concat([smac_df, dmac_df], ignore_index=True)
+    mac_df = mac_df.groupby('ip')['mac'].apply(lambda x: list(set(x))).reset_index(name='mac')
 
-    for index, row in enumerate(mac_df.to_dict(orient="records"), start=0):
-        # Source IPs - Need to get unique values
-        ips = set(row["associated_ip"])
-        list_ips = (list(ips))
-        if len(list_ips) > 1:
-            ip_list = ', '.join([str(item) for item in list_ips])
+    def format_macs(macs):
+        v_macs = [m for m in macs if m and m != '-']
+        if not v_macs:
+            return ""
+        return ", ".join(str(item) for item in v_macs)
 
-        else:
-            ip_list = list_ips[0]
-
-        mac_df.at[index, 'associated_ip'] = ip_list
+    mac_df["mac"] = mac_df["mac"].apply(format_macs)
 
     # Source Manufacturer column
     mac_vendors = {}
-    with open(MAC_VENDORS_JSON_FILE) as f:
+    with open(MAC_VENDORS_JSON_FILE, encoding="utf-8") as f:
         mac_vendors = json.load(f)
-    mac_df["vendor"] = mac_df["mac"].apply(
-        lambda mac: get_mac_vendor(mac_vendors, mac)
-    )
+        
+    def get_vendors(mac_val):
+        if not mac_val: return "Unknown vendor"
+        v_list = [get_mac_vendor(mac_vendors, m.strip()) for m in str(mac_val).split(',')]
+        v_set = set(v for v in v_list if v != "Unknown vendor")
+        if not v_set: return "Unknown vendor"
+        return ', '.join(list(v_set))
+        
+    mac_df["vendor"] = mac_df["mac"].apply(get_vendors)
 
     return mac_df
+
+
+@timeit
+def get_http_df(zeek_data: list):
+    """Return a pandas dataframe of the http.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "dst_ip",
+            "dst_port",
+            "method",
+            "host",
+            "uri",
+            "user_agent",
+        ],
+    )
+
+
+@timeit
+def get_ssl_df(zeek_data: list):
+    """Return a pandas dataframe of the ssl.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "dst_ip",
+            "dst_port",
+            "version",
+            "cipher",
+            "curve",
+            "server_name",
+            "resumed",
+        ],
+    )
+
+
+@timeit
+def get_generic_df(zeek_data: list, columns: list):
+    """Return a pandas dataframe for generic logs."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(zeek_data, columns=columns)

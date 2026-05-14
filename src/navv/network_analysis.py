@@ -3,9 +3,7 @@
 # Copyright 2024 Battelle Energy Alliance, LLC
 
 # python std library imports
-import pkg_resources
-
-# third party imports
+import os
 import click
 
 # package imports
@@ -16,7 +14,7 @@ from navv._version import __version__
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HEADER = f"NAVV: Network Architecture Verification and Validation {__version__}"
-DATA_PATH = pkg_resources.resource_filename("navv", "data/")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data/")
 
 
 @click.group(context_settings=CONTEXT_SETTINGS, invoke_without_command=True)

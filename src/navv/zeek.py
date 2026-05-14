@@ -64,15 +64,62 @@ def get_snmp_data(zeek_logs):
         .split("\n")[:-1]
     )
 
+@timeit
+def get_dhcp_data(zeek_logs):
+    """Get DHCP data for hostname resolution"""
+    dhcp_data = perform_zeekcut(
+        fields=["client_addr", "host_name"],
+        log_file=os.path.join(zeek_logs, "dhcp.log"),
+    )
+    ip_to_host = {}
+    if dhcp_data:
+        rows = dhcp_data.decode("utf-8").strip().split("\n")
+        for row in rows:
+            if not row or row.startswith("#"): continue
+            parts = row.split("\t")
+            if len(parts) >= 2:
+                ip, hostname = parts[0], parts[1]
+                if ip and hostname and hostname != "-" and ip != "-":
+                    ip_to_host[ip] = hostname
+    return ip_to_host
+
+
+@timeit
+def get_http_data(zeek_logs):
+    """Return list of HTTP log data."""
+    return perform_zeekcut(
+        fields=["id.orig_h", "id.resp_h", "id.resp_p", "method", "host", "uri", "user_agent"],
+        log_file=os.path.join(zeek_logs, "http.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
+@timeit
+def get_ssl_data(zeek_logs):
+    """Return list of SSL log data."""
+    return perform_zeekcut(
+        fields=["id.orig_h", "id.resp_h", "id.resp_p", "version", "cipher", "curve", "server_name", "resumed"],
+        log_file=os.path.join(zeek_logs, "ssl.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
+@timeit
+def get_log_data(zeek_logs, log_name, fields):
+    """Generic log extraction function."""
+    return perform_zeekcut(
+        fields=fields,
+        log_file=os.path.join(zeek_logs, f"{log_name}.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
 
 def perform_zeekcut(fields, log_file):
     """Perform the call to zeek-cut with the identified fields on the specified log file"""
     try:
         with open(log_file, "rb") as f:
             zeekcut = Popen(
-                ["zeek-cut"] + fields, stdout=PIPE, stdin=PIPE, stderr=STDOUT
+                ["zeek-cut"] + fields, stdin=f, stdout=PIPE, stderr=STDOUT
             )
-            return zeekcut.communicate(input=f.read())[0]
+            return zeekcut.communicate()[0]
     except OSError as e:
         # probably "file does not exist"
         return b""

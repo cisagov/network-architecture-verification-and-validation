@@ -42,13 +42,15 @@ def timeit(func):
 
 def trim_dns_data(data):
     """Find entries in dns log that contain no_error and return a dict of {ip: hostname,}"""
+    import io
     ret_data = {}
-    # log_list = log_to_list(data)
     info_msg("Trimming DNS.log data:")
-    for row in tqdm(data.decode("utf-8 ").split("\n")[:-1]):
-        # line_data = list(stream(row, '\t'))
+    # Stream over bytes natively, avoiding massive string allocations
+    for byte_row in tqdm(io.BytesIO(data)):
+        row = byte_row.decode("utf-8").strip()
+        if not row: continue
         line_data = row.split("\t")
-        if line_data[2] == "1" and line_data[3] == "NOERROR":
+        if len(line_data) > 3 and line_data[2] == "1" and line_data[3] == "NOERROR":
             for split in line_data[1].split(","):
                 ret_data[split] = line_data[0]
     return ret_data
