@@ -84,6 +84,33 @@ def get_dhcp_data(zeek_logs):
     return ip_to_host
 
 
+@timeit
+def get_http_data(zeek_logs):
+    """Return list of HTTP log data."""
+    return perform_zeekcut(
+        fields=["id.orig_h", "id.resp_h", "id.resp_p", "method", "host", "uri", "user_agent"],
+        log_file=os.path.join(zeek_logs, "http.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
+@timeit
+def get_ssl_data(zeek_logs):
+    """Return list of SSL log data."""
+    return perform_zeekcut(
+        fields=["id.orig_h", "id.resp_h", "id.resp_p", "version", "cipher", "curve", "server_name", "resumed"],
+        log_file=os.path.join(zeek_logs, "ssl.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
+@timeit
+def get_log_data(zeek_logs, log_name, fields):
+    """Generic log extraction function."""
+    return perform_zeekcut(
+        fields=fields,
+        log_file=os.path.join(zeek_logs, f"{log_name}.log")
+    ).decode("utf-8").split("\n")[:-1]
+
+
 
 def perform_zeekcut(fields, log_file):
     """Perform the call to zeek-cut with the identified fields on the specified log file"""

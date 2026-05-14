@@ -83,7 +83,7 @@ class Geolocator:
             months_to_try = [now, get_previous_month(now)]
             
             def attempt_download(url, ctx=None):
-                req = urllib.request.Request(url, headers={'User-Agent': 'NAVV/3.4.2'})
+                req = urllib.request.Request(url, headers={'User-Agent': 'NAVV/4.0.0'})
                 with urllib.request.urlopen(req, timeout=60, context=ctx) as response:
                     if response.status == 200:
                         uncompressed_data = gzip.decompress(response.read())
@@ -186,21 +186,6 @@ class Geolocator:
              success_msg("IP Geolocation by DB-IP (https://db-ip.com)")
         else:
             warning_msg("Networking failure. Geolocation will be disabled.")
-
-        
-        # logger.info(
-        #     "Searched locations:\n" +
-        #     "\n".join(f"  - {path}" for path in search_paths[:6])
-        # )
-        # logger.info(
-        #     "To enable geolocation:\n"
-        #     "  1. Sign up at https://www.maxmind.com/en/geolite2/signup\n"
-        #     "  2. Download GeoLite2 Country database (MMDB format)\n"
-        #     f"  3. Place it at one of:\n"
-        #     f"     - {module_dir}/GeoLite2-Country.mmdb (same as geolocation.py)\n"
-        #     f"     - ~/.navv/GeoLite2-Country.mmdb\n"
-        #     f"     - {Path.cwd()}/GeoLite2-Country.mmdb (current directory)"
-        # )
 
     def lookup(self, ip_address: str) -> Optional[str]:
         """

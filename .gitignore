@@ -15,15 +15,25 @@ __pycache__
 .python-version
 *.egg-info
 .venv
+myenv/
 
 ## Test Data ##
-analysis
-test-data
+analysis/
+test-data/
 test_pcap/
+test_customer*
+/*.html
+/*.json
+output.txt
+!/pyproject.toml
+!/package.json
+!/composer.json
+!/tsconfig.json
 
 ## Code Editors ##
 .idea
 .vscode
+*.code-workspace
 
 ## External Databases ##
 *.mmdb
@@ -35,7 +45,21 @@ test_pcap/
 .venv_wsl/
 .venv_graphify/
 
-## Agent & Graphify ##
+## Agent & Knowledge Graph ##
 .agents/
+.claude/
 graphify-out/
+.nexus/
+.gitnexus/
 GRAPH_REPORT.md
+GRAPH_TREE.html
+.graphify_detect.json
+scratch_detect.py
+rebuild_graph.py
+test_detect.py
+AGENTS.md
+CLAUDE.md
+
+## Local Helper Scripts ##
+*.ps1
+*_help.txt

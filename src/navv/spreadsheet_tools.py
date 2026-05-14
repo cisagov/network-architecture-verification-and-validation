@@ -681,6 +681,107 @@ def handle_ip(ip_to_check, dns_data, inventory, segment_dict, ext_IPs, unk_int_I
     return desc_to_change
 
 
+def write_external_inbound_sheet(rows, wb):
+    """Write connections where Src_IP is External and Dst_IP is Internal."""
+    sheet = make_sheet(wb, "External Inbound", idx=3)
+    sheet.append(
+        [
+            "Count",
+            "Src_IP",
+            "Src_Geo",
+            "Dest_IP",
+            "Dst_Hostname",
+            "Dst_Network",
+            "Port",
+            "Service",
+            "Proto",
+            "Conn_State",
+        ]
+    )
+    inbound_rows = [r for r in rows if r.direction == "External -> Internal (Ingress)"]
+    for row_index, row in enumerate(inbound_rows, start=2):
+        sheet.cell(row=row_index, column=1, value=int(row.count))
+        sheet.cell(row=row_index, column=2, value=row.src_ip)
+        sheet.cell(row=row_index, column=3, value=row.src_geo)
+        sheet.cell(row=row_index, column=4, value=row.dest_ip)
+        sheet.cell(row=row_index, column=5, value=row.dest_desc[0])
+        sheet.cell(row=row_index, column=6, value=row.dest_desc[2])
+        sheet.cell(row=row_index, column=7, value=int(row.port))
+        sheet.cell(row=row_index, column=8, value=str(row.service[0]))
+        sheet.cell(row=row_index, column=9, value=row.proto)
+        sheet.cell(row=row_index, column=10, value=row.conn[0])
+
+    if inbound_rows:
+        tab = Table(displayName="ExtInboundTable", ref=f"A1:J{len(inbound_rows)+1}")
+        sheet.add_table(tab)
+    auto_adjust_width(sheet)
+
+
+def write_internal_outbound_sheet(rows, wb):
+    """Write connections where Src_IP is Internal and Dst_IP is External."""
+    sheet = make_sheet(wb, "Internal Outbound", idx=4)
+    sheet.append(
+        [
+            "Count",
+            "Src_IP",
+            "Src_Hostname",
+            "Src_Network",
+            "Dest_IP",
+            "Dst_Geo",
+            "Port",
+            "Service",
+            "Proto",
+            "Conn_State",
+        ]
+    )
+    outbound_rows = [r for r in rows if r.direction == "Internal -> External (Egress)"]
+    for row_index, row in enumerate(outbound_rows, start=2):
+        sheet.cell(row=row_index, column=1, value=int(row.count))
+        sheet.cell(row=row_index, column=2, value=row.src_ip)
+        sheet.cell(row=row_index, column=3, value=row.src_desc[0])
+        sheet.cell(row=row_index, column=4, value=row.src_desc[2])
+        sheet.cell(row=row_index, column=5, value=row.dest_ip)
+        sheet.cell(row=row_index, column=6, value=row.dst_geo)
+        sheet.cell(row=row_index, column=7, value=int(row.port))
+        sheet.cell(row=row_index, column=8, value=str(row.service[0]))
+        sheet.cell(row=row_index, column=9, value=row.proto)
+        sheet.cell(row=row_index, column=10, value=row.conn[0])
+
+    if outbound_rows:
+        tab = Table(displayName="IntOutboundTable", ref=f"A1:J{len(outbound_rows)+1}")
+        sheet.add_table(tab)
+    auto_adjust_width(sheet)
+
+
+def write_zeek_log_sheets(wb, zeek_dfs):
+    """
+    Write specialized Zeek log dataframes to their own sheets.
+    zeek_dfs is a dict: { 'HTTP': df, 'SSL': df, 'DNS': df, ... }
+    """
+    idx = 10 # Start after the standard tabs
+    for name, df in zeek_dfs.items():
+        if df.empty:
+            continue
+        sheet = make_sheet(wb, name, idx=idx)
+        idx += 1
+        
+        # Write headers
+        headers = list(df.columns)
+        sheet.append(headers)
+        
+        # Write rows
+        for r_idx, row in enumerate(df.to_dict(orient="records"), start=2):
+            for c_idx, (col_name, value) in enumerate(row.items(), start=1):
+                sheet.cell(row=r_idx, column=c_idx, value=str(value) if value else "-")
+        
+        if not df.empty:
+            # Clean name for Table name (no spaces)
+            safe_name = name.replace(" ", "_")
+            tab = Table(displayName=f"{safe_name}Table", ref=f"A1:{openpyxl.utils.get_column_letter(len(headers))}{len(df)+1}")
+            sheet.add_table(tab)
+        auto_adjust_width(sheet)
+
+
 def write_conn_states_sheet(conn_states, wb):
     new_ws = make_sheet(wb, "Conn States", idx=8)
     new_ws.append(["State", "Description"])

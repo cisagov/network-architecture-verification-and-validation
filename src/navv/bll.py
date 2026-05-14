@@ -81,7 +81,7 @@ def get_mac_df(zeek_df: pd.DataFrame):
 
     # Source Manufacturer column
     mac_vendors = {}
-    with open(MAC_VENDORS_JSON_FILE) as f:
+    with open(MAC_VENDORS_JSON_FILE, encoding="utf-8") as f:
         mac_vendors = json.load(f)
         
     def get_vendors(mac_val):
@@ -94,3 +94,47 @@ def get_mac_df(zeek_df: pd.DataFrame):
     mac_df["vendor"] = mac_df["mac"].apply(get_vendors)
 
     return mac_df
+
+
+@timeit
+def get_http_df(zeek_data: list):
+    """Return a pandas dataframe of the http.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "dst_ip",
+            "dst_port",
+            "method",
+            "host",
+            "uri",
+            "user_agent",
+        ],
+    )
+
+
+@timeit
+def get_ssl_df(zeek_data: list):
+    """Return a pandas dataframe of the ssl.log data."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(
+        zeek_data,
+        columns=[
+            "src_ip",
+            "dst_ip",
+            "dst_port",
+            "version",
+            "cipher",
+            "curve",
+            "server_name",
+            "resumed",
+        ],
+    )
+
+
+@timeit
+def get_generic_df(zeek_data: list, columns: list):
+    """Return a pandas dataframe for generic logs."""
+    zeek_data = [row.split("\t") for row in zeek_data]
+    return pd.DataFrame(zeek_data, columns=columns)

@@ -2,15 +2,23 @@
 import os
 import webbrowser
 import json
-
+import shutil
+import sys
 
 # Third-Party Libraries
 import click
 
 # cisagov Libraries
 from navv.gui.app import app
-from navv.bll import get_snmp_df, get_zeek_df, get_mac_df
-from navv.message_handler import success_msg, warning_msg
+from navv.bll import (
+    get_snmp_df,
+    get_zeek_df,
+    get_mac_df,
+    get_http_df,
+    get_ssl_df,
+    get_generic_df,
+)
+from navv.message_handler import success_msg, warning_msg, error_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
     create_analysis_array,
@@ -32,17 +40,24 @@ from navv.spreadsheet_tools import (
     auto_discover_segments,
     write_segments_sheet,
     color_inventory_sheet,
+    write_external_inbound_sheet,
+    write_internal_outbound_sheet,
+    write_zeek_log_sheets,
 )
 from navv.zeek import (
     get_conn_data,
     get_dns_data,
     get_dhcp_data,
     get_snmp_data,
+    get_http_data,
+    get_ssl_data,
+    get_log_data,
     run_zeek,
     perform_zeekcut,
 )
 from navv.utilities import pushd, get_mac_vendor
 from navv.geolocation import Geolocator
+from navv.elevadr import generate_elevadr_report
 
 
 @click.command("generate")
@@ -73,12 +88,25 @@ from navv.geolocation import Geolocator
     "-g",
     "--geoip-db",
     required=False,
-    help="Path to GeoLite2 Country database file (MMDB format). If not specified, searches common locations.",
+    help="Path to GeoLite2 database file or directory (MMDB format). If not specified, DB-IP Lite databases will be automatically downloaded and cached.",
     type=str,
 )
 @click.argument("customer_name")
 def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     """Generate excel sheet."""
+    if not shutil.which("zeek"):
+        msg = "Zeek is not installed or not found in PATH. Please install Zeek to use NAVV."
+        if sys.platform == "win32":
+            msg += " Note: On Windows, NAVV must be run from within the WSL terminal where Zeek is installed."
+        error_msg(msg)
+        sys.exit(1)
+    if not shutil.which("zeek-cut"):
+        msg = "zeek-cut is not installed or not found in PATH. Please install Zeek to use NAVV."
+        if sys.platform == "win32":
+            msg += " Note: On Windows, NAVV must be run from within the WSL terminal where Zeek is installed."
+        error_msg(msg)
+        sys.exit(1)
+
     with pushd(output_dir):
         pass
     file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
@@ -104,6 +132,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     snmp_data = get_snmp_data(zeek_logs)
     dns_filtered = get_dns_data(customer_name, output_dir, zeek_logs)
     dhcp_data = get_dhcp_data(zeek_logs)
+    http_data = get_http_data(zeek_logs)
+    ssl_data = get_ssl_data(zeek_logs)
     
     # Merge dhcp hostnames into dns dictionary
     for ip, hostname in dhcp_data.items():
@@ -116,7 +146,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     # Get external DNS cache (similar to dns_data pattern)
     ext_dns_path = os.path.join(output_dir, f"{customer_name}_ext_dns_cache.json")
     if os.path.exists(ext_dns_path):
-        with open(ext_dns_path, "r") as f:
+        with open(ext_dns_path, "r", encoding="utf-8") as f:
             try:
                 ext_dns_cache = json.load(f)
             except:
@@ -127,6 +157,29 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     # Get zeek dataframes
     zeek_df = get_zeek_df(zeek_data, dns_filtered)
     snmp_df = get_snmp_df(snmp_data)
+    http_df = get_http_df(http_data)
+    ssl_df = get_ssl_df(ssl_data)
+    
+    zeek_dfs = {
+        "HTTP": http_df,
+        "SSL": ssl_df
+    }
+
+    # Additional OT / Remote Access / DNS Logs
+    extra_logs = {
+        "DNS": ("dns", ["id.orig_h", "id.resp_h", "id.resp_p", "proto", "query", "qclass_name", "qtype_name", "rcode_name", "answers"]),
+        "Modbus": ("modbus", ["id.orig_h", "id.resp_h", "id.resp_p", "func", "exception"]),
+        "DNP3": ("dnp3", ["id.orig_h", "id.resp_h", "id.resp_p", "fc_request", "fc_reply", "iin"]),
+        "BACnet": ("bacnet", ["id.orig_h", "id.resp_h", "id.resp_p", "pdu_service"]),
+        "ENIP": ("enip", ["id.orig_h", "id.resp_h", "id.resp_p", "command"]),
+        "SSH": ("ssh", ["id.orig_h", "id.resp_h", "id.resp_p", "auth_success", "client", "server", "cipher_alg"]),
+        "RDP": ("rdp", ["id.orig_h", "id.resp_h", "id.resp_p", "cookie", "result", "security_protocol"]),
+    }
+    
+    for sheet_name, (log_name, fields) in extra_logs.items():
+        log_data = get_log_data(zeek_logs, log_name, fields)
+        if log_data and len(log_data) > 0 and log_data[0] != "":
+            zeek_dfs[sheet_name] = get_generic_df(log_data, fields)
 
     # Get mac dataframe
     mac_df = get_mac_df(zeek_df)
@@ -144,7 +197,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     ip_to_macs = all_macs.groupby('ip')['mac'].unique()
     
     MAC_VENDORS_JSON_FILE = os.path.abspath(__file__ + "/../" + "data/mac-vendors.json")
-    with open(MAC_VENDORS_JSON_FILE) as f:
+    with open(MAC_VENDORS_JSON_FILE, encoding="utf-8") as f:
         mac_vendors = json.load(f)
         
     ip_to_mac_label = {}
@@ -211,12 +264,19 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     
     write_purdue_violations_sheet(purdue_violations, wb)
     
+    write_external_inbound_sheet(rows, wb)
+    write_internal_outbound_sheet(rows, wb)
+    write_zeek_log_sheets(wb, zeek_dfs)
+    
     write_legend_sheet(wb)
     
     generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"), title="Unfiltered NAVV Purdue Segmentation Flows")
     generate_sankey_html(verified_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_verified.html"), title="Verified Connections NAVV Purdue Segmentation Flows")
     generate_sankey_html(macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro.html"), title="Unfiltered NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
     generate_sankey_html(verified_macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro_verified.html"), title="Verified Connections NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
+
+    # Generate eleVADR report
+    generate_elevadr_report(output_dir, customer_name, rows, inventory, segments)
 
     auto_adjust_width(wb["Analysis"])
 
@@ -251,7 +311,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     wb.save(file_name)
     
     # Save external DNS cache for future runs
-    with open(ext_dns_path, "w") as f:
+    with open(ext_dns_path, "w", encoding="utf-8") as f:
         json.dump(ext_dns_cache, f)
     
     # Close geolocator to free resources
