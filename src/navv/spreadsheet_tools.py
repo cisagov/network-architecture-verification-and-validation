@@ -79,6 +79,35 @@ def _apply_header_style(cell):
     cell.font = openpyxl.styles.Font(name="Calibri", size=11, bold=True)
     cell.fill = openpyxl.styles.PatternFill("solid", fgColor="4286F4")
 
+
+def truncate_data(data, max_rows=1048574):
+    """
+    Truncate data to fit within Excel row limits.
+    Returns (truncated_data, num_truncated).
+    Supports Pandas DataFrames, lists, tuples, sets, and other iterables.
+    """
+    # If it's a DataFrame
+    if hasattr(data, "iloc") and hasattr(data, "shape"):
+        num_rows = len(data)
+        if num_rows > max_rows:
+            return data.iloc[:max_rows], num_rows - max_rows
+        return data, 0
+    
+    # If it is a set or other non-sequence iterable, convert to list first
+    if not isinstance(data, (list, tuple)):
+        try:
+            data = list(data)
+        except Exception:
+            pass
+            
+    if isinstance(data, list):
+        num_rows = len(data)
+        if num_rows > max_rows:
+            return data[:max_rows], num_rows - max_rows
+        return data, 0
+        
+    return data, 0
+
 @timeit
 def get_workbook(file_name):
     """Create the blank Inventory and Segment sheets for data input into the tool"""
@@ -443,10 +472,16 @@ def perform_analysis(
         note_key = (row.src_ip, row.dest_ip, int(row.port), row.proto, row.conn[0])
         row.notes = existing_notes.get(note_key, "")
         
-        write_row_to_sheet(row, row_index, sheet)
+        if row_index <= 1048575:
+            write_row_to_sheet(row, row_index, sheet)
     
-    tab = Table(displayName="AnalysisTable", ref=f"A1:T{len(rows)+1}")
+    written_rows = min(len(rows), 1048574)
+    tab = Table(displayName="AnalysisTable", ref=f"A1:T{written_rows+1}")
     sheet.add_table(tab)
+    
+    if len(rows) > 1048574:
+        num_truncated = len(rows) - 1048574
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
 
     # Hide geolocation and mac columns by default (users can unhide in Excel)
     sheet.column_dimensions['C'].hidden = True  # Src_MAC
@@ -699,7 +734,8 @@ def write_external_inbound_sheet(rows, wb):
         ]
     )
     inbound_rows = [r for r in rows if r.direction == "External -> Internal (Ingress)"]
-    for row_index, row in enumerate(inbound_rows, start=2):
+    truncated_inbound, num_truncated = truncate_data(inbound_rows)
+    for row_index, row in enumerate(truncated_inbound, start=2):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         sheet.cell(row=row_index, column=2, value=row.src_ip)
         sheet.cell(row=row_index, column=3, value=row.src_geo)
@@ -711,9 +747,11 @@ def write_external_inbound_sheet(rows, wb):
         sheet.cell(row=row_index, column=9, value=row.proto)
         sheet.cell(row=row_index, column=10, value=row.conn[0])
 
-    if inbound_rows:
-        tab = Table(displayName="ExtInboundTable", ref=f"A1:J{len(inbound_rows)+1}")
+    if truncated_inbound:
+        tab = Table(displayName="ExtInboundTable", ref=f"A1:J{len(truncated_inbound)+1}")
         sheet.add_table(tab)
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
     auto_adjust_width(sheet)
 
 
@@ -735,7 +773,8 @@ def write_internal_outbound_sheet(rows, wb):
         ]
     )
     outbound_rows = [r for r in rows if r.direction == "Internal -> External (Egress)"]
-    for row_index, row in enumerate(outbound_rows, start=2):
+    truncated_outbound, num_truncated = truncate_data(outbound_rows)
+    for row_index, row in enumerate(truncated_outbound, start=2):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         sheet.cell(row=row_index, column=2, value=row.src_ip)
         sheet.cell(row=row_index, column=3, value=row.src_desc[0])
@@ -747,9 +786,11 @@ def write_internal_outbound_sheet(rows, wb):
         sheet.cell(row=row_index, column=9, value=row.proto)
         sheet.cell(row=row_index, column=10, value=row.conn[0])
 
-    if outbound_rows:
-        tab = Table(displayName="IntOutboundTable", ref=f"A1:J{len(outbound_rows)+1}")
+    if truncated_outbound:
+        tab = Table(displayName="IntOutboundTable", ref=f"A1:J{len(truncated_outbound)+1}")
         sheet.add_table(tab)
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
     auto_adjust_width(sheet)
 
 
@@ -769,16 +810,20 @@ def write_zeek_log_sheets(wb, zeek_dfs):
         headers = list(df.columns)
         sheet.append(headers)
         
+        truncated_df, num_truncated = truncate_data(df)
+        
         # Write rows
-        for r_idx, row in enumerate(df.to_dict(orient="records"), start=2):
+        for r_idx, row in enumerate(truncated_df.to_dict(orient="records"), start=2):
             for c_idx, (col_name, value) in enumerate(row.items(), start=1):
                 sheet.cell(row=r_idx, column=c_idx, value=str(value) if value else "-")
         
-        if not df.empty:
+        if not truncated_df.empty:
             # Clean name for Table name (no spaces)
             safe_name = name.replace(" ", "_")
-            tab = Table(displayName=f"{safe_name}Table", ref=f"A1:{openpyxl.utils.get_column_letter(len(headers))}{len(df)+1}")
+            tab = Table(displayName=f"{safe_name}Table", ref=f"A1:{openpyxl.utils.get_column_letter(len(headers))}{len(truncated_df)+1}")
             sheet.add_table(tab)
+        if num_truncated > 0:
+            sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
         auto_adjust_width(sheet)
 
 
@@ -811,7 +856,9 @@ def write_snmp_sheet(snmp_df, wb):
         ["Src IPv4", "Src Port", "Dest IPv4", "Dest Port", "Version", "Community"]
     )
 
-    for index, row in enumerate(snmp_df.to_dict(orient="records"), start=2):
+    truncated_df, num_truncated = truncate_data(snmp_df)
+
+    for index, row in enumerate(truncated_df.to_dict(orient="records"), start=2):
         # Source IPv4 column
         sheet[f"A{index}"].value = row["src_ip"]
 
@@ -835,6 +882,9 @@ def write_snmp_sheet(snmp_df, wb):
             for cell in sheet[f"{index}:{index}"]:
                 cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
 
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
+
     auto_adjust_width(sheet, 40)
 
 
@@ -843,7 +893,11 @@ def write_externals_sheet(IPs, wb, geolocator=None, ext_dns_cache=None):
         ext_dns_cache = {}
     ext_sheet = make_sheet(wb, "Externals", idx=5)
     ext_sheet.append(["External IP", "Country", "Region", "City", "ISP", "Domain", "Reputation"])
-    for row_index, IP in enumerate(sorted(IPs), start=2):
+    
+    sorted_ips = sorted(IPs)
+    truncated_ips, num_truncated = truncate_data(sorted_ips)
+    
+    for row_index, IP in enumerate(truncated_ips, start=2):
         cell = ext_sheet[f"A{row_index}"]
         cell.value = IP
         
@@ -858,9 +912,12 @@ def write_externals_sheet(IPs, wb, geolocator=None, ext_dns_cache=None):
         ext_sheet[f"F{row_index}"].value = ext_dns_cache.get(IP, "")
         ext_sheet[f"G{row_index}"].value = "" # Reputation
     
-    if len(IPs) > 0:
-        tab = Table(displayName="ExternalsTable", ref=f"A1:G{len(IPs)+1}")
+    if len(truncated_ips) > 0:
+        tab = Table(displayName="ExternalsTable", ref=f"A1:G{len(truncated_ips)+1}")
         ext_sheet.add_table(tab)
+
+    if num_truncated > 0:
+        ext_sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
 
     auto_adjust_width(ext_sheet)
 
@@ -868,11 +925,19 @@ def write_externals_sheet(IPs, wb, geolocator=None, ext_dns_cache=None):
 def write_unknown_internals_sheet(IPs, wb):
     int_sheet = make_sheet(wb, "Unknown Internals", idx=6)
     int_sheet.append(["Unknown Internal IP"])
-    for row_index, IP in enumerate(sorted(IPs), start=2):
+    
+    sorted_ips = sorted(IPs)
+    truncated_ips, num_truncated = truncate_data(sorted_ips)
+    
+    for row_index, IP in enumerate(truncated_ips, start=2):
         cell = int_sheet[f"A{row_index}"]
         cell.value = IP
         if row_index % 2 == 0:
             cell.fill = openpyxl.styles.PatternFill("solid", fgColor="AAAAAA")
+            
+    if num_truncated > 0:
+        int_sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
+        
     auto_adjust_width(int_sheet)
 
 
@@ -910,7 +975,9 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
             continue
         filtered_rows.append(row)
 
-    for index, row in enumerate(filtered_rows, start=2):
+    truncated_rows, num_truncated = truncate_data(filtered_rows)
+
+    for index, row in enumerate(truncated_rows, start=2):
         ip = row["ip"]
         mac = row["mac"]
         vendor = row["vendor"]
@@ -937,9 +1004,13 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
         sheet[f"F{index}"].value = in_inventory
         sheet[f"G{index}"].value = "" # Recommendation
 
-    if len(filtered_rows) > 0:
-        tab = Table(displayName="InternalHostsTable", ref=f"A1:G{len(filtered_rows)+1}")
+    if len(truncated_rows) > 0:
+        tab = Table(displayName="InternalHostsTable", ref=f"A1:G{len(truncated_rows)+1}")
         sheet.add_table(tab)
+        
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
+        
     auto_adjust_width(sheet)
 
 def write_legend_sheet(wb):
@@ -1000,7 +1071,10 @@ def write_purdue_violations_sheet(violations, wb):
             "Direction",
         ]
     )
-    for row_index, row in enumerate(violations, start=2):
+    
+    truncated_violations, num_truncated = truncate_data(violations)
+    
+    for row_index, row in enumerate(truncated_violations, start=2):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         
         src_IP = sheet.cell(row=row_index, column=2, value=row.src_ip)
@@ -1051,9 +1125,12 @@ def write_purdue_violations_sheet(violations, wb):
         sheet.cell(row=row_index, column=13, value=row.proto)
         sheet.cell(row=row_index, column=14, value=row.direction)
         
-    if len(violations) > 0:
-        tab = Table(displayName="PurdueViolationsTable", ref=f"A1:N{len(violations)+1}")
+    if len(truncated_violations) > 0:
+        tab = Table(displayName="PurdueViolationsTable", ref=f"A1:N{len(truncated_violations)+1}")
         sheet.add_table(tab)
+        
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
         
     sheet.column_dimensions['L'].hidden = True
     auto_adjust_width(sheet)
@@ -1171,24 +1248,38 @@ def write_data_layer_sheet(zeek_df, wb):
     sheet = make_sheet(wb, "Data_layer")
     sheet.append(["Count", "Source MAC", "Destination MAC", "Connection State"])
     
-    for index, row in enumerate(df_grouped.itertuples(index=False), start=2):
+    truncated_df, num_truncated = truncate_data(df_grouped)
+    
+    for index, row in enumerate(truncated_df.itertuples(index=False), start=2):
         sheet.cell(row=index, column=1, value=row.count)
         sheet.cell(row=index, column=2, value=row.src_mac)
         sheet.cell(row=index, column=3, value=row.dst_mac)
         sheet.cell(row=index, column=4, value=row.conn)
         
-    if len(df_grouped) > 0:
-        tab = Table(displayName="DataLayerTable", ref=f"A1:D{len(df_grouped)+1}")
+    if len(truncated_df) > 0:
+        tab = Table(displayName="DataLayerTable", ref=f"A1:D{len(truncated_df)+1}")
         sheet.add_table(tab)
+        
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
         
     auto_adjust_width(sheet)
 
 
 def auto_adjust_width(sheet, width=40):
     """Adjust the width of the columns to fit the data"""
-    for col in sheet.columns:
-        max_width = max(len(f"{c.value}") for c in col if c.value) + 2
-        sheet.column_dimensions[col[0].column_letter].width = (
+    col_widths = {}
+    for (row, col), cell in sheet._cells.items():
+        if cell.value:
+            # Skip checking the footer row 1048576 to prevent excessive column stretching
+            if row == 1048576:
+                continue
+            val_len = len(f"{cell.value}") + 2
+            col_letter = cell.column_letter
+            col_widths[col_letter] = max(col_widths.get(col_letter, 0), val_len)
+            
+    for col_letter, max_width in col_widths.items():
+        sheet.column_dimensions[col_letter].width = (
             width if width < max_width else max_width
         )
 
