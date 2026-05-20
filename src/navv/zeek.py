@@ -132,4 +132,6 @@ def run_zeek(pcap_path, zeek_logs_path, **kwargs):
         try:
             check_call(["zeek", "-C", "-r", pcap_path, "local.zeek"])
         except Exception as e:
-            error_msg(e)
+            error_msg(str(e))
+            raise
+

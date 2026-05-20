@@ -61,7 +61,10 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     inventory = get_inventory_data(wb["Inventory Input"])
 
     if pcap and pcap.filename:
-        run_zeek(os.path.join(output_dir, pcap.filename), zeek_logs, timer=timer_data)
+        try:
+            run_zeek(os.path.join(output_dir, pcap.filename), zeek_logs, timer=timer_data)
+        except Exception as e:
+            raise RuntimeError(f"Zeek execution failed: {e}") from e
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
@@ -129,9 +132,15 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
         .decode("utf-8")
         .split("\n")[:-1]
     )
+    times = [t for t in times if t and not t.startswith("#")]
     forward = sorted(times)
-    start = float(forward[0])
-    end = float(forward[len(forward) - 1])
+    if not forward:
+        raise ValueError("No connection log data found in conn.log. Ensure the PCAP is valid and Zeek logs are populated.")
+    try:
+        start = float(forward[0])
+        end = float(forward[-1])
+    except ValueError as e:
+        raise ValueError(f"Failed to parse connection log timestamps: {e}") from e
     cap_time = end - start
     timer_data[
         "Length of Capture time"

@@ -735,7 +735,16 @@ def write_external_inbound_sheet(rows, wb):
     )
     inbound_rows = [r for r in rows if r.direction == "External -> Internal (Ingress)"]
     truncated_inbound, num_truncated = truncate_data(inbound_rows)
-    for row_index, row in enumerate(truncated_inbound, start=2):
+    disable_pbar = len(truncated_inbound) < 1000
+    for row_index, row in enumerate(
+        tqdm(
+            truncated_inbound,
+            desc="Writing External Inbound",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         sheet.cell(row=row_index, column=2, value=row.src_ip)
         sheet.cell(row=row_index, column=3, value=row.src_geo)
@@ -774,7 +783,16 @@ def write_internal_outbound_sheet(rows, wb):
     )
     outbound_rows = [r for r in rows if r.direction == "Internal -> External (Egress)"]
     truncated_outbound, num_truncated = truncate_data(outbound_rows)
-    for row_index, row in enumerate(truncated_outbound, start=2):
+    disable_pbar = len(truncated_outbound) < 1000
+    for row_index, row in enumerate(
+        tqdm(
+            truncated_outbound,
+            desc="Writing Internal Outbound",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         sheet.cell(row=row_index, column=2, value=row.src_ip)
         sheet.cell(row=row_index, column=3, value=row.src_desc[0])
@@ -813,7 +831,16 @@ def write_zeek_log_sheets(wb, zeek_dfs):
         truncated_df, num_truncated = truncate_data(df)
         
         # Write rows
-        for r_idx, row in enumerate(truncated_df.to_dict(orient="records"), start=2):
+        disable_pbar = len(truncated_df) < 1000
+        for r_idx, row in enumerate(
+            tqdm(
+                truncated_df.to_dict(orient="records"),
+                desc=f"Writing {name} Log",
+                disable=disable_pbar,
+                leave=False,
+            ),
+            start=2,
+        ):
             for c_idx, (col_name, value) in enumerate(row.items(), start=1):
                 sheet.cell(row=r_idx, column=c_idx, value=str(value) if value else "-")
         
@@ -858,7 +885,16 @@ def write_snmp_sheet(snmp_df, wb):
 
     truncated_df, num_truncated = truncate_data(snmp_df)
 
-    for index, row in enumerate(truncated_df.to_dict(orient="records"), start=2):
+    disable_pbar = len(truncated_df) < 1000
+    for index, row in enumerate(
+        tqdm(
+            truncated_df.to_dict(orient="records"),
+            desc="Writing SNMP",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         # Source IPv4 column
         sheet[f"A{index}"].value = row["src_ip"]
 
@@ -897,7 +933,16 @@ def write_externals_sheet(IPs, wb, geolocator=None, ext_dns_cache=None):
     sorted_ips = sorted(IPs)
     truncated_ips, num_truncated = truncate_data(sorted_ips)
     
-    for row_index, IP in enumerate(truncated_ips, start=2):
+    disable_pbar = len(truncated_ips) < 1000
+    for row_index, IP in enumerate(
+        tqdm(
+            truncated_ips,
+            desc="Writing Externals",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         cell = ext_sheet[f"A{row_index}"]
         cell.value = IP
         
@@ -929,7 +974,16 @@ def write_unknown_internals_sheet(IPs, wb):
     sorted_ips = sorted(IPs)
     truncated_ips, num_truncated = truncate_data(sorted_ips)
     
-    for row_index, IP in enumerate(truncated_ips, start=2):
+    disable_pbar = len(truncated_ips) < 1000
+    for row_index, IP in enumerate(
+        tqdm(
+            truncated_ips,
+            desc="Writing Unknown Internals",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         cell = int_sheet[f"A{row_index}"]
         cell.value = IP
         if row_index % 2 == 0:
@@ -977,7 +1031,16 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
 
     truncated_rows, num_truncated = truncate_data(filtered_rows)
 
-    for index, row in enumerate(truncated_rows, start=2):
+    disable_pbar = len(truncated_rows) < 1000
+    for index, row in enumerate(
+        tqdm(
+            truncated_rows,
+            desc="Writing Internal Hosts",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         ip = row["ip"]
         mac = row["mac"]
         vendor = row["vendor"]
@@ -1074,7 +1137,16 @@ def write_purdue_violations_sheet(violations, wb):
     
     truncated_violations, num_truncated = truncate_data(violations)
     
-    for row_index, row in enumerate(truncated_violations, start=2):
+    disable_pbar = len(truncated_violations) < 1000
+    for row_index, row in enumerate(
+        tqdm(
+            truncated_violations,
+            desc="Writing Purdue Violations",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
         sheet.cell(row=row_index, column=1, value=int(row.count))
         
         src_IP = sheet.cell(row=row_index, column=2, value=row.src_ip)
@@ -1269,7 +1341,13 @@ def write_data_layer_sheet(zeek_df, wb):
 def auto_adjust_width(sheet, width=40):
     """Adjust the width of the columns to fit the data"""
     col_widths = {}
-    for (row, col), cell in sheet._cells.items():
+    disable_pbar = len(sheet._cells) < 1000
+    for (row, col), cell in tqdm(
+        sheet._cells.items(),
+        desc=f"Auto-adjusting width for {sheet.title}",
+        disable=disable_pbar,
+        leave=False,
+    ):
         if cell.value:
             # Skip checking the footer row 1048576 to prevent excessive column stretching
             if row == 1048576:
