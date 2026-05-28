@@ -824,6 +824,14 @@ def write_zeek_log_sheets(wb, zeek_dfs):
         sheet = make_sheet(wb, name, idx=idx)
         idx += 1
         
+        # Group by all columns, get size, and rename it to 'Count'
+        df = df.groupby(list(df.columns), dropna=False).size().reset_index(name="Count")
+        # Move 'Count' to the front
+        cols = ["Count"] + [col for col in df.columns if col != "Count"]
+        df = df[cols]
+        # Sort descending by Count
+        df = df.sort_values(by="Count", ascending=False)
+
         # Write headers
         headers = list(df.columns)
         sheet.append(headers)
@@ -842,7 +850,10 @@ def write_zeek_log_sheets(wb, zeek_dfs):
             start=2,
         ):
             for c_idx, (col_name, value) in enumerate(row.items(), start=1):
-                sheet.cell(row=r_idx, column=c_idx, value=str(value) if value else "-")
+                if col_name == "Count":
+                    sheet.cell(row=r_idx, column=c_idx, value=int(value))
+                else:
+                    sheet.cell(row=r_idx, column=c_idx, value=str(value) if value else "-")
         
         if not truncated_df.empty:
             # Clean name for Table name (no spaces)
@@ -880,8 +891,14 @@ def write_snmp_sheet(snmp_df, wb):
     """Write SNMP log data to excel sheet."""
     sheet = make_sheet(wb, "SNMP", idx=4)
     sheet.append(
-        ["Src IPv4", "Src Port", "Dest IPv4", "Dest Port", "Version", "Community"]
+        ["Count", "Src IPv4", "Src Port", "Dest IPv4", "Dest Port", "Version", "Community"]
     )
+
+    if not snmp_df.empty:
+        snmp_df = snmp_df.groupby(list(snmp_df.columns), dropna=False).size().reset_index(name="Count")
+        cols = ["Count"] + [col for col in snmp_df.columns if col != "Count"]
+        snmp_df = snmp_df[cols]
+        snmp_df = snmp_df.sort_values(by="Count", ascending=False)
 
     truncated_df, num_truncated = truncate_data(snmp_df)
 
@@ -895,23 +912,26 @@ def write_snmp_sheet(snmp_df, wb):
         ),
         start=2,
     ):
+        # Count column
+        sheet[f"A{index}"].value = int(row["Count"])
+
         # Source IPv4 column
-        sheet[f"A{index}"].value = row["src_ip"]
+        sheet[f"B{index}"].value = row["src_ip"]
 
         # Source Port column
-        sheet[f"B{index}"].value = row["src_port"]
+        sheet[f"C{index}"].value = row["src_port"]
 
         # Destination IPv4 column
-        sheet[f"C{index}"].value = row["dst_ip"]
+        sheet[f"D{index}"].value = row["dst_ip"]
 
         # Destination Port column
-        sheet[f"D{index}"].value = row["dst_port"]
+        sheet[f"E{index}"].value = row["dst_port"]
 
         # Version column
-        sheet[f"E{index}"].value = row["version"]
+        sheet[f"F{index}"].value = row["version"]
 
         # Community column
-        sheet[f"F{index}"].value = row["community"]
+        sheet[f"G{index}"].value = row["community"]
 
         # Add styling to every other row
         if index % 2 == 0:

@@ -1,8 +1,11 @@
+import glob
 import json
 import os
+import re
+import subprocess
 from subprocess import Popen, PIPE, STDOUT, check_call
 
-from navv.message_handler import error_msg
+from navv.message_handler import error_msg, warning_msg, success_msg
 from navv.utilities import pushd, timeit, trim_dns_data
 
 
@@ -125,8 +128,88 @@ def perform_zeekcut(fields, log_file):
         return b""
 
 
+def find_local_zeek():
+    """Locate the system local.zeek configuration file."""
+    # Try using zeek-config site_dir
+    try:
+        site_dir = subprocess.check_output(["zeek-config", "--site_dir"], stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        local_zeek = os.path.join(site_dir, "local.zeek")
+        if os.path.exists(local_zeek):
+            return local_zeek
+    except Exception:
+        pass
+
+    # Common default paths for WSL, Linux, macOS
+    common_paths = [
+        "/opt/homebrew/share/zeek/site/local.zeek",
+        "/opt/homebrew/Cellar/zeek/*/share/zeek/site/local.zeek",
+        "/usr/local/share/zeek/site/local.zeek",
+        "/usr/share/zeek/site/local.zeek",
+        "/usr/local/zeek/share/zeek/site/local.zeek",
+        "/opt/zeek/share/zeek/site/local.zeek",
+    ]
+    for path_pattern in common_paths:
+        for path in glob.glob(path_pattern):
+            if os.path.exists(path):
+                return path
+    return None
+
+
+def check_and_enable_zeek_policies():
+    """Verify if mac-logging and vlan-logging are enabled in local.zeek, and attempt to enable them."""
+    local_zeek = find_local_zeek()
+    if not local_zeek:
+        warning_msg("Could not locate local.zeek configuration file. Unable to verify mac_logging and VLAN tagging status.")
+        return
+
+    try:
+        with open(local_zeek, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        warning_msg(f"Could not read local.zeek at {local_zeek}: {e}")
+        return
+
+    mac_logging_pattern = re.compile(r'^\s*#?\s*@load\s+policy/protocols/conn/mac-logging\b', re.MULTILINE)
+    vlan_logging_pattern = re.compile(r'^\s*#?\s*@load\s+policy/protocols/conn/vlan-logging\b', re.MULTILINE)
+
+    modified = False
+    new_content = content
+
+    def enable_policy(policy_name, pattern, current_content):
+        match = pattern.search(current_content)
+        if not match:
+            warning_msg(f"Zeek policy '{policy_name}' is not enabled in local.zeek. Attempting to enable it for you...")
+            return current_content + f"\n@load policy/protocols/conn/{policy_name}\n", True
+
+        line = match.group(0)
+        if line.strip().startswith('#'):
+            warning_msg(f"Zeek policy '{policy_name}' is not enabled in local.zeek. Attempting to enable it for you...")
+            uncommented_line = re.sub(r'^\s*#\s*', '', line)
+            new_content = current_content.replace(line, uncommented_line)
+            return new_content, True
+        else:
+            return current_content, False
+
+    new_content, mac_updated = enable_policy("mac-logging", mac_logging_pattern, new_content)
+    new_content, vlan_updated = enable_policy("vlan-logging", vlan_logging_pattern, new_content)
+
+    if mac_updated or vlan_updated:
+        try:
+            with open(local_zeek, "w", encoding="utf-8") as f:
+                f.write(new_content)
+            success_msg(f"Successfully enabled required policies in local.zeek at {local_zeek}")
+        except PermissionError:
+            warning_msg(
+                f"Permission denied: Unable to modify local.zeek at {local_zeek}.\n"
+                f"Please enable mac-logging and vlan-logging manually by uncommenting the corresponding lines in {local_zeek}."
+            )
+        except Exception as e:
+            warning_msg(f"Failed to write to local.zeek: {e}")
+
+
 @timeit
 def run_zeek(pcap_path, zeek_logs_path, **kwargs):
+    check_and_enable_zeek_policies()
     with pushd(zeek_logs_path):
         # can we add Site::local_nets to the zeek call here?
         try:
