@@ -123,7 +123,11 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     inventory = get_inventory_data(wb[inventory_tab_name])
 
     if pcap:
-        run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
+        try:
+            run_zeek(os.path.abspath(pcap), zeek_logs, timer=timer_data)
+        except Exception as e:
+            error_msg(f"Zeek failed to run on PCAP. Please verify that the PCAP file is not corrupt and that Zeek is installed and working correctly: {e}")
+            sys.exit(1)
     else:
         timer_data["run_zeek"] = "NOT RAN"
 
@@ -254,6 +258,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
         timer=timer_data,
     )
 
+    click.echo("Writing externals, unknown internals, SNMP, internal hosts, and Purdue violations sheets...")
     write_externals_sheet(ext_IPs, wb, geolocator=geolocator, ext_dns_cache=ext_dns_cache)
 
     write_unknown_internals_sheet(unk_int_IPs, wb)
@@ -264,30 +269,43 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     
     write_purdue_violations_sheet(purdue_violations, wb)
     
+    click.echo("Writing inbound, outbound, and specialized Zeek log sheets...")
     write_external_inbound_sheet(rows, wb)
     write_internal_outbound_sheet(rows, wb)
     write_zeek_log_sheets(wb, zeek_dfs)
     
     write_legend_sheet(wb)
     
+    click.echo("Generating Sankey HTML flows...")
     generate_sankey_html(sankey_data, os.path.join(output_dir, f"{customer_name}_sankey.html"), title="Unfiltered NAVV Purdue Segmentation Flows")
     generate_sankey_html(verified_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_verified.html"), title="Verified Connections NAVV Purdue Segmentation Flows")
     generate_sankey_html(macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro.html"), title="Unfiltered NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
     generate_sankey_html(verified_macro_sankey_data, os.path.join(output_dir, f"{customer_name}_sankey_macro_verified.html"), title="Verified Connections NAVV Macro Purdue Level Flows", link_colors=macro_link_colors)
 
     # Generate eleVADR report
+    click.echo("Generating eleVADR report...")
     generate_elevadr_report(output_dir, customer_name, rows, inventory, segments)
 
+    click.echo("Auto-adjusting column widths (this may take a minute)...")
     auto_adjust_width(wb["Analysis"])
 
+    click.echo("Calculating capture time statistics...")
     times = (
         perform_zeekcut(fields=["ts"], log_file=os.path.join(zeek_logs, "conn.log"))
         .decode("utf-8")
         .split("\n")[:-1]
     )
+    times = [t for t in times if t and not t.startswith("#")]
     forward = sorted(times)
-    start = float(forward[0])
-    end = float(forward[len(forward) - 1])
+    if not forward:
+        error_msg("No connection log data found in conn.log. Please verify that Zeek ran successfully and logs are populated.")
+        sys.exit(1)
+    try:
+        start = float(forward[0])
+        end = float(forward[-1])
+    except ValueError as e:
+        error_msg(f"Failed to parse connection log timestamps: {e}")
+        sys.exit(1)
     cap_time = end - start
     timer_data[
         "Length of Capture time"
@@ -308,6 +326,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     rest = [s for s in current_sheets if s not in front_sheets]
     wb._sheets = [wb[s] for s in front_sheets + rest]
 
+    click.echo("Saving Excel workbook (this can take a few minutes for large datasets)...")
     wb.save(file_name)
     
     # Save external DNS cache for future runs

@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 
 from flask import Flask, render_template, request, send_file
 from navv.gui.bll import generate
@@ -75,8 +76,16 @@ def download():
     if zeek_logs and zeek_logs.filename:
         zeek_logs.save(os.path.join(output_dir, zeek_logs.filename))
 
-    memfile = generate(
-        customer_name, output_dir, pcap_file, zeek_logs.filename, excel_file
-    )
+    try:
+        memfile = generate(
+            customer_name, output_dir, pcap_file, zeek_logs.filename, excel_file
+        )
+    except Exception as e:
+        if os.path.exists(output_dir):
+            try:
+                shutil.rmtree(output_dir)
+            except Exception:
+                pass
+        return f"Error generating analysis: {e}", 400
 
     return send_file(memfile, download_name=filename, as_attachment=True)
