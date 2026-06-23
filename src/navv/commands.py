@@ -7,6 +7,7 @@ import sys
 
 # Third-Party Libraries
 import click
+import openpyxl
 
 # cisagov Libraries
 from navv.gui.app import app
@@ -21,6 +22,9 @@ from navv.bll import (
 from navv.message_handler import success_msg, warning_msg, error_msg
 from navv.spreadsheet_tools import (
     auto_adjust_width,
+    create_target_workbook,
+    write_inventory_sheet,
+    read_existing_notes,
     create_analysis_array,
     get_inventory_data,
     get_package_data,
@@ -91,8 +95,14 @@ from navv.elevadr import generate_elevadr_report
     help="Path to GeoLite2 database file or directory (MMDB format). If not specified, DB-IP Lite databases will be automatically downloaded and cached.",
     type=str,
 )
+@click.option(
+    "-m",
+    "--macro",
+    is_flag=True,
+    help="Use macro-enabled template MACRO_network_analysis.xlsm as base.",
+)
 @click.argument("customer_name")
-def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
+def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db, macro):
     """Generate excel sheet."""
     if not shutil.which("zeek"):
         msg = "Zeek is not installed or not found in PATH. Please install Zeek to use NAVV."
@@ -109,18 +119,31 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
 
     with pushd(output_dir):
         pass
-    file_name = os.path.join(output_dir, customer_name + "_network_analysis.xlsx")
+    ext = ".xlsm" if macro else ".xlsx"
+    file_name = os.path.join(output_dir, customer_name + "_network_analysis" + ext)
 
-    wb = get_workbook(file_name)
+    # Read from existing workbook if it exists
+    segments = []
+    inventory = {}
+    existing_notes = {}
+    inventory_tab_name = "Inventory Input"
+
+    if os.path.isfile(file_name):
+        existing_wb = openpyxl.load_workbook(file_name)
+        segments = get_segments_data(existing_wb["Segments"])
+        inventory_tab_name = "Inventory" if "Inventory" in existing_wb.sheetnames else "Inventory Input"
+        inventory = get_inventory_data(existing_wb[inventory_tab_name])
+        existing_notes = read_existing_notes(existing_wb)
+        existing_wb.close()
+
+    # Create target workbook
+    wb = create_target_workbook(macro=macro, inventory_tab_name=inventory_tab_name)
 
     # Initialize geolocator for IP geolocation
     geolocator = Geolocator(db_path=geoip_db)
 
     services, conn_states = get_package_data()
     timer_data = dict()
-    segments = get_segments_data(wb["Segments"])
-    inventory_tab_name = "Inventory" if "Inventory" in wb.sheetnames else "Inventory Input"
-    inventory = get_inventory_data(wb[inventory_tab_name])
 
     if pcap:
         try:
@@ -225,6 +248,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     # Auto-discover and recolor segments
     segments = auto_discover_segments(zeek_df, segments)
     write_segments_sheet(segments, wb)
+    write_inventory_sheet(inventory, wb, inventory_tab_name)
     color_inventory_sheet(wb, inventory_tab_name, segments)
 
     ext_IPs = set()
@@ -256,6 +280,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
         ext_dns_cache=ext_dns_cache,
         ip_to_mac_label=ip_to_mac_label,
         timer=timer_data,
+        existing_notes=existing_notes,
     )
 
     click.echo("Writing externals, unknown internals, SNMP, internal hosts, and Purdue violations sheets...")
@@ -320,7 +345,24 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     write_data_layer_sheet(zeek_df, wb)
 
     # Reorder sheets to match original layout
-    desired_order = ["Legend & ReadMe", "Analysis", inventory_tab_name, "Segments"]
+    desired_order = [
+        "Legend & ReadMe",
+        "Analysis",
+        inventory_tab_name,
+        "Segments",
+        "Purdue Violations",
+        "External Inbound",
+        "Internal Outbound",
+        "Internal Hosts",
+        "Stats",
+        "Conn States",
+        "Externals",
+        "SNMP",
+        "Unknown Internals",
+        "Data_layer"
+    ]
+    if getattr(wb, "vba_archive", None) is not None:
+        desired_order.insert(1, "Filters")
     current_sheets = wb.sheetnames
     front_sheets = [s for s in desired_order if s in current_sheets]
     rest = [s for s in current_sheets if s not in front_sheets]

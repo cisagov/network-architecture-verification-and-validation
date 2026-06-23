@@ -129,6 +129,49 @@ def get_workbook(file_name):
     return wb
 
 
+def create_target_workbook(macro=False, inventory_tab_name="Inventory Input"):
+    """Create either a blank Workbook or load from the macro-enabled template."""
+    if macro:
+        template_path = os.path.join(os.path.dirname(__file__), "data", "MACRO_network_analysis.xlsm")
+        wb = openpyxl.load_workbook(template_path, keep_vba=True)
+    else:
+        wb = openpyxl.Workbook()
+        inv_sheet = wb.active
+        inv_sheet.title = inventory_tab_name
+        seg_sheet = wb.create_sheet("Segments")
+
+        _apply_header_style(inv_sheet.cell(row=1, column=1, value="IP"))
+        _apply_header_style(inv_sheet.cell(row=1, column=2, value="Name"))
+
+        _apply_header_style(seg_sheet.cell(row=1, column=1, value="Name"))
+        _apply_header_style(seg_sheet.cell(row=1, column=2, value="Description"))
+        _apply_header_style(seg_sheet.cell(row=1, column=3, value="CIDR"))
+        _apply_header_style(seg_sheet.cell(row=1, column=4, value="Purdue Level"))
+    return wb
+
+
+def write_inventory_sheet(inventory, wb, inventory_tab_name):
+    """Write inventory data back to the sheet, preserving colors if they exist."""
+    sheet = make_sheet(wb, inventory_tab_name)
+    sheet.append(["IP", "Name"])
+    for cell in sheet[1]:
+        _apply_header_style(cell)
+
+    # Write inventory rows
+    for ip, item in inventory.items():
+        row_idx = sheet.max_row + 1
+        c1 = sheet.cell(row=row_idx, column=1, value=ip)
+        c2 = sheet.cell(row=row_idx, column=2, value=item.name)
+        # Apply the original style/font if it exists in item.color
+        if getattr(item, "color", None):
+            if item.color[0]:
+                c1.fill = item.color[0]
+                c2.fill = item.color[0]
+            if item.color[1]:
+                c1.font = item.color[1]
+                c2.font = item.color[1]
+
+
 @timeit
 def get_inventory_data(ws, **kwargs):
     inventory = dict()
@@ -327,6 +370,7 @@ def perform_analysis(
     geolocator=None,
     ext_dns_cache=None,
     ip_to_mac_label=None,
+    existing_notes=None,
     **kwargs,
 ):
     def normalize_purdue(level_str, segment_name):
@@ -344,7 +388,8 @@ def perform_analysis(
     if verified_macro_sankey_data is None: verified_macro_sankey_data = {}
     if macro_link_colors is None: macro_link_colors = {}
     # Read existing notes before creating new sheet
-    existing_notes = read_existing_notes(wb)
+    if existing_notes is None:
+        existing_notes = read_existing_notes(wb)
     
     sheet = make_sheet(wb, "Analysis", idx=0)
     sheet.append(
@@ -1320,9 +1365,38 @@ def generate_sankey_html(sankey_data, output_path, title="NAVV Purdue Segmentati
         f.write(html_content)
 
 def make_sheet(wb, sheet_name, idx=None):
-    """Create the sheet if it doesn't already exist otherwise remove it and recreate it"""
+    """Create the sheet if it doesn't already exist otherwise remove it and recreate it.
+    If it is a macro-enabled workbook and already exists, clear its content."""
+    # Safety rule: Never delete, recreate, rename, overwrite, clear, or move Filters worksheet
+    if sheet_name == "Filters":
+        return wb["Filters"]
+
+    is_macro = getattr(wb, "vba_archive", None) is not None
+
     if sheet_name in wb.sheetnames:
-        wb.remove(wb[sheet_name])
+        if is_macro:
+            ws = wb[sheet_name]
+            # Clear tables
+            if hasattr(ws, "tables"):
+                ws.tables.clear()
+            # Clear images
+            if hasattr(ws, "_images"):
+                ws._images = []
+            # Clear merged cells
+            if hasattr(ws, "merged_cells") and hasattr(ws.merged_cells, "ranges"):
+                ws.merged_cells.ranges.clear()
+            # Clear conditional formatting
+            if hasattr(ws, "conditional_formatting") and hasattr(ws.conditional_formatting, "_cf_rules"):
+                ws.conditional_formatting._cf_rules.clear()
+            # Clear data validation
+            if hasattr(ws, "data_validations") and hasattr(ws.data_validations, "dataValidation"):
+                ws.data_validations.dataValidation.clear()
+            # Delete all rows
+            if ws.max_row > 0:
+                ws.delete_rows(1, ws.max_row)
+            return ws
+        else:
+            wb.remove(wb[sheet_name])
     return wb.create_sheet(sheet_name, index=idx)
 
 
