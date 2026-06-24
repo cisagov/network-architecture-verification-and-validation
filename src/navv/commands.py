@@ -128,8 +128,17 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db, macro):
     existing_notes = {}
     inventory_tab_name = "Inventory Input"
 
+    other_ext = ".xlsx" if macro else ".xlsm"
+    file_name_to_read = None
     if os.path.isfile(file_name):
-        existing_wb = openpyxl.load_workbook(file_name)
+        file_name_to_read = file_name
+    else:
+        fallback_file_name = os.path.join(output_dir, customer_name + "_network_analysis" + other_ext)
+        if os.path.isfile(fallback_file_name):
+            file_name_to_read = fallback_file_name
+
+    if file_name_to_read:
+        existing_wb = openpyxl.load_workbook(file_name_to_read)
         segments = get_segments_data(existing_wb["Segments"])
         inventory_tab_name = "Inventory" if "Inventory" in existing_wb.sheetnames else "Inventory Input"
         inventory = get_inventory_data(existing_wb[inventory_tab_name])
