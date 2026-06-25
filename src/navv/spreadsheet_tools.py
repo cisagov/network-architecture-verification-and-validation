@@ -1032,6 +1032,12 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
     sheet.append(
         ["IP Address", "MAC Address", "Manufacturer", "Network Segment", "Purdue Level", "In Inventory?", "Recommendation"]
     )
+    
+    if isinstance(segment_dict, dict):
+        segments_list = list(segment_dict.values())
+    else:
+        segments_list = list(segment_dict)
+        
     filtered_rows = []
     import netaddr
     for row in mac_df.to_dict(orient="records"):
@@ -1042,7 +1048,7 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
             ip_obj = netaddr.IPAddress(ip)
             if ip_obj.is_multicast() or ip_obj.is_link_local() or ip_obj.is_loopback():
                 continue
-            in_segment = any(ip_obj in seg.network for seg in segment_dict)
+            in_segment = any(ip_obj in seg.network for seg in segments_list)
             if not ip_obj.is_ipv4_private_use() and not in_segment:
                 continue
         except Exception:
@@ -1071,7 +1077,7 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
         
         try:
             ip_obj = netaddr.IPAddress(ip)
-            for seg in segment_dict:
+            for seg in segments_list:
                 if ip_obj in seg.network:
                     segment_name = seg.name
                     purdue_level = seg.purdue_level
@@ -1089,6 +1095,89 @@ def write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict):
 
     if len(truncated_rows) > 0:
         tab = Table(displayName="InternalHostsTable", ref=f"A1:G{len(truncated_rows)+1}")
+        sheet.add_table(tab)
+        
+    if num_truncated > 0:
+        sheet.cell(row=1048576, column=1, value=f"Truncated table {num_truncated} rows not shown")
+        
+    auto_adjust_width(sheet)
+
+def write_ipv6_hosts_sheet(mac_df, wb):
+    """Fill spreadsheet with IPv6 -> MAC -> Manufacturer -> IPv4 mappings"""
+    sheet = make_sheet(wb, "IPv6 Hosts", idx=3)
+    sheet.append(
+        ["IPv6 Address", "MAC Address", "Manufacturer", "IPv4 Address"]
+    )
+    
+    import collections
+    import netaddr
+    
+    mac_to_ipv4s = collections.defaultdict(list)
+    ipv6_rows = []
+    
+    for row in mac_df.to_dict(orient="records"):
+        ip = row["ip"]
+        mac_str = row.get("mac", "")
+        vendor = row.get("vendor", "Unknown vendor")
+        
+        try:
+            ip_obj = netaddr.IPAddress(ip)
+            if ip_obj.version == 4:
+                if ip == "0.0.0.0":
+                    continue
+                macs = [m.strip().lower() for m in mac_str.split(",") if m.strip()]
+                for m in macs:
+                    mac_to_ipv4s[m].append(ip)
+            elif ip_obj.version == 6:
+                if ip_obj.is_multicast() or ip_obj.is_loopback() or ip_obj.value == 0:
+                    continue
+                ipv6_rows.append({
+                    "ip": ip,
+                    "mac": mac_str,
+                    "vendor": vendor
+                })
+        except Exception:
+            continue
+            
+    filtered_rows = []
+    for ipv6_row in ipv6_rows:
+        ip = ipv6_row["ip"]
+        mac_str = ipv6_row["mac"]
+        vendor = ipv6_row["vendor"]
+        
+        macs = [m.strip().lower() for m in mac_str.split(",") if m.strip()]
+        unique_ipv4s = []
+        for m in macs:
+            for ipv4 in mac_to_ipv4s.get(m, []):
+                if ipv4 not in unique_ipv4s:
+                    unique_ipv4s.append(ipv4)
+                    
+        filtered_rows.append({
+            "ipv6": ip,
+            "mac": mac_str,
+            "vendor": vendor,
+            "ipv4": ", ".join(unique_ipv4s)
+        })
+        
+    truncated_rows, num_truncated = truncate_data(filtered_rows)
+    
+    disable_pbar = len(truncated_rows) < 1000
+    for index, row in enumerate(
+        tqdm(
+            truncated_rows,
+            desc="Writing IPv6 Hosts",
+            disable=disable_pbar,
+            leave=False,
+        ),
+        start=2,
+    ):
+        sheet[f"A{index}"].value = row["ipv6"]
+        sheet[f"B{index}"].value = row["mac"]
+        sheet[f"C{index}"].value = row["vendor"]
+        sheet[f"D{index}"].value = row["ipv4"]
+        
+    if len(truncated_rows) > 0:
+        tab = Table(displayName="IPv6HostsTable", ref=f"A1:D{len(truncated_rows)+1}")
         sheet.add_table(tab)
         
     if num_truncated > 0:

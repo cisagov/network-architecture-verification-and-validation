@@ -33,6 +33,7 @@ from navv.spreadsheet_tools import (
     write_stats_sheet,
     write_unknown_internals_sheet,
     write_internal_hosts_sheet,
+    write_ipv6_hosts_sheet,
     write_purdue_violations_sheet,
     write_legend_sheet,
     write_data_layer_sheet,
@@ -266,6 +267,8 @@ def generate(customer_name, output_dir, pcap, zeek_logs, geoip_db):
     write_snmp_sheet(snmp_df, wb)
 
     write_internal_hosts_sheet(mac_df, wb, inventory, segments)
+    
+    write_ipv6_hosts_sheet(mac_df, wb)
     
     write_purdue_violations_sheet(purdue_violations, wb)
     
