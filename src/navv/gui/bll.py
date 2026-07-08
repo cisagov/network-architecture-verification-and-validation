@@ -20,6 +20,7 @@ from navv.spreadsheet_tools import (
     write_stats_sheet,
     write_unknown_internals_sheet,
     write_internal_hosts_sheet,
+    write_ipv6_hosts_sheet,
     write_purdue_violations_sheet,
     write_legend_sheet,
     generate_sankey_html,
@@ -121,6 +122,7 @@ def generate(customer_name, output_dir, pcap, zeek_logs_zip, spreadsheet):
     
     segment_dict = {str(seg.network): seg for seg in segments}
     write_internal_hosts_sheet(mac_df, wb, inventory, segment_dict)
+    write_ipv6_hosts_sheet(mac_df, wb)
     write_purdue_violations_sheet(purdue_violations, wb)
     write_legend_sheet(wb)
     
