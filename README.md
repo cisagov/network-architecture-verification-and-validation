@@ -153,8 +153,13 @@ Options:
   -g, --geoip-db TEXT    Path to GeoLite2 database file or directory (MMDB format).
                          If not specified, DB-IP Lite databases will be
                          automatically downloaded and cached.
+  -m, --macro            Use macro-enabled template.
   -h, --help             Show this message and exit.
 ```
+
+### Macro-Enabled Templates ###
+
+Using the `-m` or `--macro` option causes NAVV to generate the output workbook from a macro-enabled template and save it as an `.xlsm` file. This template provies some pre-configured filters found on the "Filters" tab. This makes it easier to filter for commonly filtered items within the NAVV.
 
 ### Browser ###
 
